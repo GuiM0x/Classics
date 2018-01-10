@@ -27,10 +27,7 @@ class Barre : public sf::RectangleShape
 {
 public:
     Barre(float width, float height) :
-        RectangleShape(sf::Vector2f(width, height))
-    {
-
-    }
+        RectangleShape(sf::Vector2f(width, height)) {}
 
     float top() const { return getGlobalBounds().top; }
     float bottom() const { return (getGlobalBounds().top + getGlobalBounds().height); }
@@ -38,10 +35,7 @@ public:
     float right() const { return (getGlobalBounds().left + getGlobalBounds().width); }
 
     void update(const sf::Time& dt, int direction) {
-        if(direction < 0)
-            setPosition(getPosition().x, (getPosition().y - m_speed * dt.asSeconds()));
-        else
-            setPosition(getPosition().x, (getPosition().y + m_speed * dt.asSeconds()));
+        setPosition(getPosition().x, (getPosition().y + (m_speed * dt.asSeconds() * direction)));
     }
 
 private:
@@ -61,107 +55,31 @@ public:
         m_texture.setSmooth(true);
         setTexture(&m_texture);
         setOrigin(radius, radius);
-        m_box.setSize(sf::Vector2f(getGlobalBounds().width, getGlobalBounds().height));
+        m_box.setSize(sf::Vector2f(radius*2, radius*2));
         m_box.setFillColor(sf::Color::Transparent);
         m_box.setOutlineThickness(1);
         m_box.setOutlineColor(sf::Color::Red);
-        setRotation(Outils::rollTheDice(1, 359));
+        //setRotation(Outils::rollTheDice(1, 359));
     }
 
     float top() const { return getPosition().y; }
     float bottom() const { return (getPosition().y + getGlobalBounds().height); }
     float left() const { return getPosition().x; }
     float right() const { return (getGlobalBounds().left + getGlobalBounds().width); }
+    sf::FloatRect getFloatRect() { return m_box.getGlobalBounds(); }
+    const sf::RectangleShape& getBox() { return m_box; }
 
     void setLimit(float left, float right) {
         m_limitLeft = left;
         m_limitRight = right;
     }
 
-    void collideWindow(sf::RenderTarget *window)
-    {
-        // Top
-        if(top() <= getRadius()) {
-            setPosition(left(), getRadius());
-            bounceH();
-        }
-
-        // Bottom
-        if(top() >= (window->getSize().y - getRadius())) {
-            setPosition(left(), window->getSize().y - getRadius());
-            bounceH();
-        }
-
-        //Left - Right
-        if(left() <= getRadius() || left() >= window->getSize().x - getRadius()) {
-            bounceV(); // Provisoire
-        }
+    void bounceH() {
+        setRotation(360 - getRotation());
     }
 
-    void collidePaddle(const Barre& p1, const Barre& p2)
-    {
-        sf::FloatRect player1(p1.getPosition(), p1.getSize());
-        sf::FloatRect player2(p2.getPosition(), p2.getSize());
-
-        // If Ball is inside player 1
-        if(player1.intersects(m_box.getGlobalBounds())) {
-
-            /// PARTIE TRICKY :
-            /// Danc le cas ou un coin de balle et en intersection avec un coin de paddle,
-            /// pour savoir vers quelle direction la balle doit rebondir,
-            /// on récupère l'angle vers lequel elle pointe,
-            /// ce qui permet de savoir si elle monte ou elle descend.
-            /// PARTIE OBVIOUS :
-            /// Dans le cas où la balle viens d'en bas,
-            /// il lui est théoriquement impossible de toucher le haut du paddle,
-            /// ce qui signifie qu'elle devra rebondir sur la zone verticale
-            /// et bien sûr sinon elle rebondira sur la zone horizontale du paddle.
-            /// PARTIE LAST CASE :
-            /// Dernier cas de figure, si la balle n'est ni sur le coin du haut,
-            /// ni sur le coin du bas alors bien sûr elle rebondit verticalement.
-
-            // TO DO : Adjust position before bounce to avoid somes collision's bugs
-
-            if(top() <= p1.top() && bottom() >= p1.top()) {
-                // if come from down
-                if(getRotation() > 180 && getRotation() < 270)
-                    bounceV();
-                else
-                    bounceH();
-            }
-            else if(top() <= p1.bottom() && bottom() >= p1.bottom()) {
-                // if come from up
-                if(getRotation() > 90 && getRotation() < 180)
-                    bounceV();
-                else
-                    bounceH();
-            }
-            else {
-                bounceV();
-            }
-        }
-
-        // If Ball is inside player 1
-        if(player2.intersects(m_box.getGlobalBounds())) {
-
-            if(top() <= p2.top() && bottom() >= p2.top()) {
-                // if ball comes from down
-                if(getRotation() > 0 && getRotation() < 90)
-                    bounceV();
-                else
-                    bounceH();
-            }
-            else if(top() <= p2.bottom() && bottom() >= p2.bottom()) {
-                // if ball comes from up
-                if(getRotation() > 270 && getRotation() < 0)
-                    bounceV();
-                else
-                    bounceH();
-            }
-            else {
-                bounceV();
-            }
-        }
+    void bounceV() {
+        setRotation(90 - (getRotation() - 90));
     }
 
     void update(const sf::Time& dt)
@@ -173,21 +91,25 @@ public:
         m_box.setPosition(x - getRadius(), y - getRadius());
     }
 
-    sf::RectangleShape m_box;
+    /// DEBUG
+    void slowDown() {
+        m_speed -= 10.f;
+        if(m_speed < 0)
+            m_speed = 0.f;
+    }
+    void speedUp() {
+        m_speed += 10.f;
+        if(m_speed < 0)
+            m_speed = 0.f;
+    }
+
 private:
-    sf::Texture  m_texture;
-    const float  PI           = 3.141592f;
-    const float  m_speed      = 700.f;
-    float        m_limitLeft  = 0.f;
-    float        m_limitRight = 0.f;
-
-    void bounceH() {
-        setRotation(360 - getRotation());
-    }
-
-    void bounceV() {
-        setRotation(90 - (getRotation() - 90));
-    }
+    sf::RectangleShape m_box;
+    sf::Texture        m_texture;
+    const float        PI           = 3.141592f;
+    float              m_speed      = 100.f;
+    float              m_limitLeft  = 0.f;
+    float              m_limitRight = 0.f;
 };
 
 std::ostream& operator<<(std::ostream& os, const Ball& b)
@@ -197,6 +119,91 @@ std::ostream& operator<<(std::ostream& os, const Ball& b)
 }
 ///////////////////////////////
 /////// FUNC
+void collideWindow(Ball& b, sf::RenderTarget *window)
+{
+    // Top
+    if(b.top() <= b.getRadius()) {
+        b.setPosition(b.left(), b.getRadius());
+        b.bounceH();
+    }
+
+    // Bottom
+    if(b.top() >= (window->getSize().y - b.getRadius())) {
+        b.setPosition(b.left(), window->getSize().y - b.getRadius());
+        b.bounceH();
+    }
+
+    //Left - Right
+    if(b.left() <= b.getRadius() || b.left() >= window->getSize().x - b.getRadius()) {
+        b.bounceV(); // TO DO : point pour l'adversaire selon côté
+    }
+}
+
+void collidePaddle(Ball& b, const Barre& p1, const Barre& p2)
+{
+    sf::FloatRect player1(p1.getGlobalBounds());
+    sf::FloatRect player2(p2.getGlobalBounds());
+
+    // If Ball is inside player 1
+    if(player1.intersects(b.getFloatRect())) {
+
+        /// PARTIE TRICKY :
+        /// Danc le cas ou un coin de balle et en intersection avec un coin de paddle,
+        /// pour savoir vers quelle direction la balle doit rebondir,
+        /// on récupère l'angle vers lequel elle pointe,
+        /// ce qui permet de savoir si elle monte ou elle descend.
+        /// PARTIE OBVIOUS :
+        /// Dans le cas où la balle viens d'en bas,
+        /// il lui est théoriquement impossible de toucher le haut du paddle,
+        /// ce qui signifie qu'elle devra rebondir sur la zone verticale
+        /// et bien sûr sinon elle rebondira sur la zone horizontale du paddle.
+        /// PARTIE LAST CASE :
+        /// Dernier cas de figure, si la balle n'est ni sur le coin du haut,
+        /// ni sur le coin du bas alors bien sûr elle rebondit verticalement.
+
+        // TO DO : Adjust position before bounce to avoid somes collision's bugs
+
+        if(b.top() <= p1.top() && b.bottom() >= p1.top()) {
+            // if come from down
+            if(b.getRotation() > 180 && b.getRotation() < 270)
+                b.bounceV();
+            else
+                b.bounceH();
+        }
+        else if(b.top() - b.getRadius() <= p1.bottom() && b.bottom() >= p1.bottom()) {
+            // if come from up
+            if(b.getRotation() > 90 && b.getRotation() < 180)
+                b.bounceV();
+            else
+                b.bounceH();
+        }
+        else {
+            b.bounceV();
+        }
+    }
+
+    // If Ball is inside player 2
+    if(player2.intersects(b.getFloatRect())) {
+
+        if(b.top() <= p2.top() && b.bottom() >= p2.top()) {
+            // if ball comes from down
+            if(b.getRotation() > 0 && b.getRotation() < 90)
+                b.bounceV();
+            else
+                b.bounceH();
+        }
+        else if(b.top() - b.getRadius() <= p2.bottom() && b.bottom() >= p2.bottom()) {
+            // if ball comes from up
+            if(b.getRotation() > 270 && b.getRotation() < 0)
+                b.bounceV();
+            else
+                b.bounceH();
+        }
+        else {
+            b.bounceV();
+        }
+    }
+}
 
 ///////////////////////////////
 /////// CONST
@@ -226,14 +233,19 @@ int main()
     Barre player2(BARRE_WIDTH, BARRE_HEIGHT);
     player2.setPosition(P2_X, P_Y);
 
+    std::cout << "BARRE SIZE w: " << player1.getGlobalBounds().width
+              << ", h: " << player1.getGlobalBounds().height << '\n';
+
     /////// CLOCK/DT
     sf::Clock clock;
     sf::Time dt;
+    float timer{0.f};
 
     /////// GAME LOOP
     while (window.isOpen())
     {
         dt = clock.restart();
+        timer += dt.asSeconds();
 
         /////// EVENTS
         sf::Event event;
@@ -267,16 +279,32 @@ int main()
             if(event.type == sf::Event::MouseButtonPressed) {
                 if(event.mouseButton.button == sf::Mouse::Left) {
                     myBall.setRotation(myBall.getRotation() - 10);
-                    std::cout << myBall << '\n';
                 }
                 if(event.mouseButton.button == sf::Mouse::Right) {
                     myBall.setRotation(myBall.getRotation() + 10);
-                    std::cout << myBall << '\n';
                 }
             }
 
+            /////// MOUSE WHEEL
+            if(event.type == sf::Event::MouseWheelScrolled) {
+                if(event.mouseWheelScroll.delta > 0) {
+                    myBall.speedUp();
+                }
+                if(event.mouseWheelScroll.delta < 0) {
+                    myBall.slowDown();
+                }
+            }
+
+            /////// CLOSE WINDOW
             if (event.type == sf::Event::Closed)
                 window.close();
+        }
+
+        /////// DEBUG
+        if(timer > 1.f) {
+            timer = 0.f;
+            std::cout << "X: " << myBall.getFloatRect().left << '\n'
+                      << "Y: " << myBall.getFloatRect().top << '\n';
         }
 
         /////// UPDATE
@@ -285,8 +313,8 @@ int main()
         if(key[P1_DOWN]) { player1.update(dt, dir::DOWN); }
         if(key[P2_DOWN]) { player2.update(dt, dir::DOWN); }
 
-        myBall.collideWindow(&window);
-        myBall.collidePaddle(player1, player2);
+        collideWindow(myBall, &window);
+        collidePaddle(myBall, player1, player2);
         myBall.update(dt);
 
         /////// DRAW
@@ -294,7 +322,7 @@ int main()
         window.draw(player1);
         window.draw(player2);
         window.draw(myBall);
-        window.draw(myBall.m_box);
+        window.draw(myBall.getBox());
         window.display();
     }
 
