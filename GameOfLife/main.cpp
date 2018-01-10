@@ -57,7 +57,7 @@ int main()
                     std::cout << "STATES reset and AUTOMATA desactived" << '\n';
                     grid.resetLife();
                 }
-                if(event.key.code == sf::Keyboard::G) {
+                if(event.key.code == sf::Keyboard::R) {
                     if(!AUTOMATA)
                         grid.genereRandCells();
                     else
