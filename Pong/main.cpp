@@ -4,6 +4,8 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/System.hpp>
 
+#include "include/Outils.h"
+
 ///////////////////////////////
 /////// RESET KEY STATE
 void reset_key_state(std::vector<bool>& v){
@@ -16,6 +18,11 @@ std::vector<bool> key(KEY_MAX, false);
 
 ///////////////////////////////
 /////// CLASS BARRE
+enum dir{
+    UP   = -1,
+    DOWN = 1
+};
+
 class Barre : public sf::RectangleShape
 {
 public:
@@ -30,8 +37,15 @@ public:
     float left() const { return getGlobalBounds().left; }
     float right() const { return (getGlobalBounds().left + getGlobalBounds().width); }
 
-private:
+    void update(const sf::Time& dt, int direction) {
+        if(direction < 0)
+            setPosition(getPosition().x, (getPosition().y - m_speed * dt.asSeconds()));
+        else
+            setPosition(getPosition().x, (getPosition().y + m_speed * dt.asSeconds()));
+    }
 
+private:
+    float m_speed = 250.f;
 };
 ///////////////////////////////
 /////// CLASS BALL
@@ -51,6 +65,7 @@ public:
         m_box.setFillColor(sf::Color::Transparent);
         m_box.setOutlineThickness(1);
         m_box.setOutlineColor(sf::Color::Red);
+        setRotation(Outils::rollTheDice(1, 359));
     }
 
     float top() const { return getPosition().y; }
@@ -103,9 +118,9 @@ public:
             /// et bien sûr sinon elle rebondira sur la zone horizontale du paddle.
             /// PARTIE LAST CASE :
             /// Dernier cas de figure, si la balle n'est ni sur le coin du haut,
-            /// ni sur le coin du bas alors bien sûr elle rebondira verticalement.
+            /// ni sur le coin du bas alors bien sûr elle rebondit verticalement.
 
-            // TO DO : Adjust position before bounce ?
+            // TO DO : Adjust position before bounce to avoid somes collision's bugs
 
             if(top() <= p1.top() && bottom() >= p1.top()) {
                 // if come from down
@@ -265,6 +280,11 @@ int main()
         }
 
         /////// UPDATE
+        if(key[P1_UP])   { player1.update(dt, dir::UP); }
+        if(key[P2_UP])   { player2.update(dt, dir::UP); }
+        if(key[P1_DOWN]) { player1.update(dt, dir::DOWN); }
+        if(key[P2_DOWN]) { player2.update(dt, dir::DOWN); }
+
         myBall.collideWindow(&window);
         myBall.collidePaddle(player1, player2);
         myBall.update(dt);
