@@ -3,6 +3,7 @@
 
 #include <SFML/Graphics.hpp>
 #include <SFML/System.hpp>
+#include <SFML/Audio.hpp>
 
 #include "include/Outils.h"
 
@@ -57,7 +58,8 @@ public:
         CircleShape(radius, pointCount),
         m_box(sf::RectangleShape(sf::Vector2f(radius*2, radius*2))),
         m_texture(sf::Texture()),
-        m_texture_cracked(sf::Texture())
+        m_texture_cracked(sf::Texture()),
+        m_bufferSoundCrack(sf::SoundBuffer())
     {
         // Textures
         m_texture.loadFromFile("assets/ball.png");
@@ -65,6 +67,10 @@ public:
         setTexture(&m_texture);
         m_texture_cracked.loadFromFile("assets/ball_cracked.png");
         m_texture_cracked.setSmooth(true);
+
+        // Sounds
+        m_bufferSoundCrack.loadFromFile("sounds/sound_crack.wav");
+        m_soundCrack.setBuffer(m_bufferSoundCrack);
 
         // Origin point (for perfect rotation in middle of texture)
         setOrigin(radius, radius);
@@ -82,6 +88,7 @@ public:
     float left() const                 { return getPosition().x; }
     float right() const                { return (getGlobalBounds().left + getGlobalBounds().width); }
     float getSpeed() const             { return m_speed; }
+    bool isOut() const                 { return m_isOut; }
     sf::FloatRect getFloatRect()       { return m_box.getGlobalBounds(); }
     const sf::RectangleShape& getBox() { return m_box; }
 
@@ -93,6 +100,7 @@ public:
     void bounceH()          { setRotation(360 - getRotation()); }
     void bounceV()          { setRotation(90 - (getRotation() - 90)); }
     void setOut(bool isOut) { m_isOut = isOut; }
+    void playCrackSound()   { m_soundCrack.play(); }
 
     void update(const sf::Time& dt)
     {
@@ -124,6 +132,8 @@ private:
     sf::RectangleShape m_box;
     sf::Texture        m_texture;
     sf::Texture        m_texture_cracked;
+    sf::SoundBuffer    m_bufferSoundCrack;
+    sf::Sound          m_soundCrack;
     const float        PI           = 3.141592f;
     float              m_speed      = 100.f;
     float              m_limitLeft  = 0.f;
@@ -169,6 +179,8 @@ void collideWindow(Ball& b, sf::RenderTarget *window)
     }
     //Left - Right
     if(b.left() <= b.getRadius() || b.left() >= window->getSize().x - b.getRadius()) {
+        if(!b.isOut())
+            b.playCrackSound();
         b.setOut(true);
     }
 }
