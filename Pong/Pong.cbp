@@ -56,6 +56,7 @@
 		<Linker>
 			<Add directory="E:/CODING/Cplus/SFML-2.4.2-DW2/lib" />
 		</Linker>
+		<Unit filename="include/Outils.h" />
 		<Unit filename="main.cpp" />
 		<Extensions>
 			<code_completion />

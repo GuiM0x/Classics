@@ -27,19 +27,26 @@ class Barre : public sf::RectangleShape
 {
 public:
     Barre(float width, float height) :
-        RectangleShape(sf::Vector2f(width, height)) {}
+        RectangleShape(sf::Vector2f(width, height)),
+        m_texture(sf::Texture())
+    {
+        m_texture.loadFromFile("assets/paddle.png");
+        m_texture.setSmooth(true);
+        setTexture(&m_texture);
+    }
 
-    float top() const { return getGlobalBounds().top; }
+    float top()    const { return getGlobalBounds().top; }
     float bottom() const { return (getGlobalBounds().top + getGlobalBounds().height); }
-    float left() const { return getGlobalBounds().left; }
-    float right() const { return (getGlobalBounds().left + getGlobalBounds().width); }
+    float left()   const { return getGlobalBounds().left; }
+    float right()  const { return (getGlobalBounds().left + getGlobalBounds().width); }
 
     void update(const sf::Time& dt, int direction) {
         setPosition(getPosition().x, (getPosition().y + (m_speed * dt.asSeconds() * direction)));
     }
 
 private:
-    float m_speed = 250.f;
+    sf::Texture m_texture;
+    float       m_speed = 250.f;
 };
 ///////////////////////////////
 /////// CLASS BALL
@@ -49,24 +56,33 @@ public:
     explicit Ball(float radius = 0, std::size_t pointCount = 30) :
         CircleShape(radius, pointCount),
         m_box(sf::RectangleShape(sf::Vector2f(radius*2, radius*2))),
-        m_texture(sf::Texture())
+        m_texture(sf::Texture()),
+        m_texture_cracked(sf::Texture())
     {
-        m_texture.loadFromFile("assets/arrow_ball.png");
+        // Textures
+        m_texture.loadFromFile("assets/ball.png");
         m_texture.setSmooth(true);
         setTexture(&m_texture);
+        m_texture_cracked.loadFromFile("assets/ball_cracked.png");
+        m_texture_cracked.setSmooth(true);
+
+        // Origin point (for perfect rotation in middle of texture)
         setOrigin(radius, radius);
+
+        // Collide box
         m_box.setFillColor(sf::Color::Transparent);
         m_box.setOutlineThickness(1);
         m_box.setOutlineColor(sf::Color::Red);
+
         //setRotation(Outils::rollTheDice(1, 359));
     }
 
-    float top() const { return getPosition().y; }
-    float bottom() const { return (getPosition().y + getGlobalBounds().height); }
-    float left() const { return getPosition().x; }
-    float right() const { return (getGlobalBounds().left + getGlobalBounds().width); }
-    float getSpeed() const { return m_speed; }
-    sf::FloatRect getFloatRect() { return m_box.getGlobalBounds(); }
+    float top() const                  { return getPosition().y; }
+    float bottom() const               { return (getPosition().y + getGlobalBounds().height); }
+    float left() const                 { return getPosition().x; }
+    float right() const                { return (getGlobalBounds().left + getGlobalBounds().width); }
+    float getSpeed() const             { return m_speed; }
+    sf::FloatRect getFloatRect()       { return m_box.getGlobalBounds(); }
     const sf::RectangleShape& getBox() { return m_box; }
 
     void setLimit(float left, float right) {
@@ -74,16 +90,22 @@ public:
         m_limitRight = right;
     }
 
-    void bounceH() { setRotation(360 - getRotation()); }
-    void bounceV() { setRotation(90 - (getRotation() - 90)); }
+    void bounceH()          { setRotation(360 - getRotation()); }
+    void bounceV()          { setRotation(90 - (getRotation() - 90)); }
+    void setOut(bool isOut) { m_isOut = isOut; }
 
     void update(const sf::Time& dt)
     {
-        float radA = getRotation() * ((2.f * PI) / 360.f);
-        float x    = left() + (cos(radA) * m_speed * dt.asSeconds());
-        float y    = top() + (sin(radA) * m_speed * dt.asSeconds());
-        setPosition(x, y);
-        m_box.setPosition(x - getRadius(), y - getRadius());
+        if(!m_isOut) {
+            float radA = getRotation() * ((2.f * PI) / 360.f);
+            float x    = left() + (cos(radA) * m_speed * dt.asSeconds());
+            float y    = top() + (sin(radA) * m_speed * dt.asSeconds());
+            setPosition(x, y);
+            m_box.setPosition(x - getRadius(), y - getRadius());
+        }
+        else {
+            playAnimOut(dt);
+        }
     }
 
     /// DEBUG
@@ -101,10 +123,27 @@ public:
 private:
     sf::RectangleShape m_box;
     sf::Texture        m_texture;
+    sf::Texture        m_texture_cracked;
     const float        PI           = 3.141592f;
     float              m_speed      = 100.f;
     float              m_limitLeft  = 0.f;
     float              m_limitRight = 0.f;
+    float              m_elapsed    = 0.f;
+    bool               m_isOut      = false;
+
+    void playAnimOut(const sf::Time& dt)
+    {
+        m_elapsed += dt.asSeconds();
+        if(m_elapsed < 2.f) {
+            setTexture(&m_texture_cracked);
+        }
+        else {
+            setTexture(&m_texture);
+            setPosition(1024/2.f, 576/2.f);
+            m_isOut = false;
+            m_elapsed = 0.f;
+        }
+    }
 };
 
 std::ostream& operator<<(std::ostream& os, const Ball& b)
@@ -115,7 +154,7 @@ std::ostream& operator<<(std::ostream& os, const Ball& b)
     return os;
 }
 ///////////////////////////////
-/////// FUNC
+/////// COLLIDE WINDOW
 void collideWindow(Ball& b, sf::RenderTarget *window)
 {
     // Top
@@ -130,10 +169,11 @@ void collideWindow(Ball& b, sf::RenderTarget *window)
     }
     //Left - Right
     if(b.left() <= b.getRadius() || b.left() >= window->getSize().x - b.getRadius()) {
-        b.bounceV(); // TO DO : point pour l'adversaire selon côté
+        b.setOut(true);
     }
 }
-
+///////////////////////////////
+/////// COLLIDE PADDLE
 void collidePaddle(Ball& b, const Barre& p1, const Barre& p2)
 {
     sf::FloatRect player1(p1.getGlobalBounds());
@@ -206,8 +246,8 @@ void collidePaddle(Ball& b, const Barre& p1, const Barre& p2)
 /////// CONST
 const unsigned WINDOW_WIDTH  = 1024;
 const unsigned WINDOW_HEIGHT = 576;
-const float    BARRE_WIDTH   = 25;
-const float    BARRE_HEIGHT  = 150;
+const float    BARRE_WIDTH   = 16;
+const float    BARRE_HEIGHT  = 128;
 const float    P1_X          = 10;
 const float    P2_X          = WINDOW_WIDTH - BARRE_WIDTH - 10;
 const float    P_Y           = (WINDOW_HEIGHT / 2) - (BARRE_HEIGHT / 2);
@@ -295,11 +335,13 @@ int main()
         }
 
         /// DEBUG
+        /*
         if(timer > 1.f) {
             timer = 0.f;
             myBall.setRotation(Outils::rollTheDice(1, 360));
             std::cout << myBall << '\n';
         }
+        */
 
         /////// UPDATE
         if(key[P1_UP])   { player1.update(dt, dir::UP); }
