@@ -48,14 +48,13 @@ class Ball : public sf::CircleShape
 public:
     explicit Ball(float radius = 0, std::size_t pointCount = 30) :
         CircleShape(radius, pointCount),
-        m_box(sf::RectangleShape()),
+        m_box(sf::RectangleShape(sf::Vector2f(radius*2, radius*2))),
         m_texture(sf::Texture())
     {
         m_texture.loadFromFile("assets/arrow_ball.png");
         m_texture.setSmooth(true);
         setTexture(&m_texture);
         setOrigin(radius, radius);
-        m_box.setSize(sf::Vector2f(radius*2, radius*2));
         m_box.setFillColor(sf::Color::Transparent);
         m_box.setOutlineThickness(1);
         m_box.setOutlineColor(sf::Color::Red);
@@ -66,6 +65,7 @@ public:
     float bottom() const { return (getPosition().y + getGlobalBounds().height); }
     float left() const { return getPosition().x; }
     float right() const { return (getGlobalBounds().left + getGlobalBounds().width); }
+    float getSpeed() const { return m_speed; }
     sf::FloatRect getFloatRect() { return m_box.getGlobalBounds(); }
     const sf::RectangleShape& getBox() { return m_box; }
 
@@ -74,13 +74,8 @@ public:
         m_limitRight = right;
     }
 
-    void bounceH() {
-        setRotation(360 - getRotation());
-    }
-
-    void bounceV() {
-        setRotation(90 - (getRotation() - 90));
-    }
+    void bounceH() { setRotation(360 - getRotation()); }
+    void bounceV() { setRotation(90 - (getRotation() - 90)); }
 
     void update(const sf::Time& dt)
     {
@@ -93,12 +88,12 @@ public:
 
     /// DEBUG
     void slowDown() {
-        m_speed -= 10.f;
+        m_speed -= 15.f;
         if(m_speed < 0)
             m_speed = 0.f;
     }
     void speedUp() {
-        m_speed += 10.f;
+        m_speed += 15.f;
         if(m_speed < 0)
             m_speed = 0.f;
     }
@@ -114,7 +109,9 @@ private:
 
 std::ostream& operator<<(std::ostream& os, const Ball& b)
 {
-    os << "Rotation: " << b.getRotation() << " deg(s)";
+    os << "Rotation : " << b.getRotation() << " deg(s)" << '\n'
+       << "Speed    : " << b.getSpeed() << '\n'
+       << "-------------------------";
     return os;
 }
 ///////////////////////////////
@@ -126,13 +123,11 @@ void collideWindow(Ball& b, sf::RenderTarget *window)
         b.setPosition(b.left(), b.getRadius());
         b.bounceH();
     }
-
     // Bottom
     if(b.top() >= (window->getSize().y - b.getRadius())) {
         b.setPosition(b.left(), window->getSize().y - b.getRadius());
         b.bounceH();
     }
-
     //Left - Right
     if(b.left() <= b.getRadius() || b.left() >= window->getSize().x - b.getRadius()) {
         b.bounceV(); // TO DO : point pour l'adversaire selon côté
@@ -161,9 +156,8 @@ void collidePaddle(Ball& b, const Barre& p1, const Barre& p2)
         /// Dernier cas de figure, si la balle n'est ni sur le coin du haut,
         /// ni sur le coin du bas alors bien sûr elle rebondit verticalement.
 
-        // TO DO : Adjust position before bounce to avoid somes collision's bugs
-
         if(b.top() <= p1.top() && b.bottom() >= p1.top()) {
+            //Corner top
             // if come from down
             if(b.getRotation() > 180 && b.getRotation() < 270)
                 b.bounceV();
@@ -171,6 +165,7 @@ void collidePaddle(Ball& b, const Barre& p1, const Barre& p2)
                 b.bounceH();
         }
         else if(b.top() - b.getRadius() <= p1.bottom() && b.bottom() >= p1.bottom()) {
+            //Corner bottom
             // if come from up
             if(b.getRotation() > 90 && b.getRotation() < 180)
                 b.bounceV();
@@ -186,15 +181,17 @@ void collidePaddle(Ball& b, const Barre& p1, const Barre& p2)
     if(player2.intersects(b.getFloatRect())) {
 
         if(b.top() <= p2.top() && b.bottom() >= p2.top()) {
+            // Corner top
             // if ball comes from down
-            if(b.getRotation() > 0 && b.getRotation() < 90)
+            if(b.getRotation() > 270 && b.getRotation() < 360)
                 b.bounceV();
             else
                 b.bounceH();
         }
         else if(b.top() - b.getRadius() <= p2.bottom() && b.bottom() >= p2.bottom()) {
+            //Corner bottom
             // if ball comes from up
-            if(b.getRotation() > 270 && b.getRotation() < 0)
+            if(b.getRotation() > 0 && b.getRotation() < 90)
                 b.bounceV();
             else
                 b.bounceH();
@@ -232,9 +229,6 @@ int main()
 
     Barre player2(BARRE_WIDTH, BARRE_HEIGHT);
     player2.setPosition(P2_X, P_Y);
-
-    std::cout << "BARRE SIZE w: " << player1.getGlobalBounds().width
-              << ", h: " << player1.getGlobalBounds().height << '\n';
 
     /////// CLOCK/DT
     sf::Clock clock;
@@ -300,11 +294,11 @@ int main()
                 window.close();
         }
 
-        /////// DEBUG
+        /// DEBUG
         if(timer > 1.f) {
             timer = 0.f;
-            std::cout << "X: " << myBall.getFloatRect().left << '\n'
-                      << "Y: " << myBall.getFloatRect().top << '\n';
+            myBall.setRotation(Outils::rollTheDice(1, 360));
+            std::cout << myBall << '\n';
         }
 
         /////// UPDATE
