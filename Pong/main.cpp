@@ -71,6 +71,9 @@ public:
         // Sounds
         m_bufferSoundCrack.loadFromFile("sounds/sound_crack.wav");
         m_soundCrack.setBuffer(m_bufferSoundCrack);
+        m_bufferSoundBounce.loadFromFile("sounds/sound_bounce.wav");
+        m_soundBounce.setBuffer(m_bufferSoundBounce);
+
 
         // Origin point (for perfect rotation in middle of texture)
         setOrigin(radius, radius);
@@ -97,10 +100,11 @@ public:
         m_limitRight = right;
     }
 
-    void bounceH()          { setRotation(360 - getRotation()); }
-    void bounceV()          { setRotation(90 - (getRotation() - 90)); }
     void setOut(bool isOut) { m_isOut = isOut; }
     void playCrackSound()   { m_soundCrack.play(); }
+    void playBounceSound()  { m_soundBounce.play(); }
+    void bounceH()          { setRotation(360 - getRotation()); }
+    void bounceV()          { setRotation(90 - (getRotation() - 90)); }
 
     void update(const sf::Time& dt)
     {
@@ -134,6 +138,8 @@ private:
     sf::Texture        m_texture_cracked;
     sf::SoundBuffer    m_bufferSoundCrack;
     sf::Sound          m_soundCrack;
+    sf::SoundBuffer    m_bufferSoundBounce;
+    sf::Sound          m_soundBounce;
     const float        PI           = 3.141592f;
     float              m_speed      = 100.f;
     float              m_limitLeft  = 0.f;
@@ -179,9 +185,10 @@ void collideWindow(Ball& b, sf::RenderTarget *window)
     }
     //Left - Right
     if(b.left() <= b.getRadius() || b.left() >= window->getSize().x - b.getRadius()) {
-        if(!b.isOut())
+        /*if(!b.isOut())
             b.playCrackSound();
-        b.setOut(true);
+        b.setOut(true);*/
+        b.bounceV();
     }
 }
 ///////////////////////////////
@@ -193,6 +200,8 @@ void collidePaddle(Ball& b, const Barre& p1, const Barre& p2)
 
     // If Ball is inside player 1
     if(player1.intersects(b.getFloatRect())) {
+
+        b.playBounceSound();
 
         /// PARTIE TRICKY :
         /// Danc le cas ou un coin de balle et en intersection avec un coin de paddle,
@@ -208,10 +217,12 @@ void collidePaddle(Ball& b, const Barre& p1, const Barre& p2)
         /// Dernier cas de figure, si la balle n'est ni sur le coin du haut,
         /// ni sur le coin du bas alors bien sûr elle rebondit verticalement.
 
+        /// TO DO : ADUST POSITION BEFORE BOUNCE TO AVOID BUG
+
         if(b.top() <= p1.top() && b.bottom() >= p1.top()) {
             //Corner top
             // if come from down
-            if(b.getRotation() > 180 && b.getRotation() < 270)
+            if(b.getRotation() >= 180 && b.getRotation() < 270)
                 b.bounceV();
             else
                 b.bounceH();
@@ -219,7 +230,7 @@ void collidePaddle(Ball& b, const Barre& p1, const Barre& p2)
         else if(b.top() - b.getRadius() <= p1.bottom() && b.bottom() >= p1.bottom()) {
             //Corner bottom
             // if come from up
-            if(b.getRotation() > 90 && b.getRotation() < 180)
+            if(b.getRotation() > 90 && b.getRotation() <= 180)
                 b.bounceV();
             else
                 b.bounceH();
@@ -232,10 +243,12 @@ void collidePaddle(Ball& b, const Barre& p1, const Barre& p2)
     // If Ball is inside player 2
     if(player2.intersects(b.getFloatRect())) {
 
+        b.playBounceSound();
+
         if(b.top() <= p2.top() && b.bottom() >= p2.top()) {
             // Corner top
             // if ball comes from down
-            if(b.getRotation() > 270 && b.getRotation() < 360)
+            if((b.getRotation() > 270 && b.getRotation() < 360) || b.getRotation() == 0)
                 b.bounceV();
             else
                 b.bounceH();
@@ -243,7 +256,7 @@ void collidePaddle(Ball& b, const Barre& p1, const Barre& p2)
         else if(b.top() - b.getRadius() <= p2.bottom() && b.bottom() >= p2.bottom()) {
             //Corner bottom
             // if ball comes from up
-            if(b.getRotation() > 0 && b.getRotation() < 90)
+            if(b.getRotation() >= 0 && b.getRotation() < 90)
                 b.bounceV();
             else
                 b.bounceH();
@@ -305,6 +318,11 @@ int main()
                 if (event.key.code == sf::Keyboard::S) { key[P1_DOWN] = true; }
                 if (event.key.code == sf::Keyboard::O) { key[P2_UP]   = true; }
                 if (event.key.code == sf::Keyboard::L) { key[P2_DOWN] = true; }
+
+                /// DEBUG
+                if (event.key.code == sf::Keyboard::D) {
+                    std::cout << myBall << '\n';
+                }
 
                 if(event.key.code == sf::Keyboard::Escape)
                     window.close();
