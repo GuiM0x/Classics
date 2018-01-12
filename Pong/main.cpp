@@ -67,22 +67,17 @@ public:
         setTexture(&m_texture);
         m_texture_cracked.loadFromFile("assets/ball_cracked.png");
         m_texture_cracked.setSmooth(true);
-
         // Sounds
         m_bufferSoundCrack.loadFromFile("sounds/sound_crack.wav");
         m_soundCrack.setBuffer(m_bufferSoundCrack);
         m_bufferSoundBounce.loadFromFile("sounds/sound_bounce.wav");
         m_soundBounce.setBuffer(m_bufferSoundBounce);
-
-
         // Origin point (for perfect rotation in middle of texture)
         setOrigin(radius, radius);
-
         // Collide box
         m_box.setFillColor(sf::Color::Transparent);
         m_box.setOutlineThickness(1);
         m_box.setOutlineColor(sf::Color::Red);
-
         //setRotation(Outils::rollTheDice(1, 359));
     }
 
@@ -91,6 +86,8 @@ public:
     float left() const                 { return getPosition().x; }
     float right() const                { return (getGlobalBounds().left + getGlobalBounds().width); }
     float getSpeed() const             { return m_speed; }
+    float limitLeft() const            { return m_limitLeft; }
+    float limitRight() const           { return m_limitRight; }
     bool isOut() const                 { return m_isOut; }
     sf::FloatRect getFloatRect()       { return m_box.getGlobalBounds(); }
     const sf::RectangleShape& getBox() { return m_box; }
@@ -122,12 +119,12 @@ public:
 
     /// DEBUG
     void slowDown() {
-        m_speed -= 15.f;
+        m_speed -= 30.f;
         if(m_speed < 0)
             m_speed = 0.f;
     }
     void speedUp() {
-        m_speed += 15.f;
+        m_speed += 30.f;
         if(m_speed < 0)
             m_speed = 0.f;
     }
@@ -170,6 +167,27 @@ std::ostream& operator<<(std::ostream& os, const Ball& b)
     return os;
 }
 ///////////////////////////////
+/////// GET ANGLE REFLEXION
+float getAngleReflexion(Ball& b, const Barre& p)
+{
+    const float angleMax{45.f};
+    const float halfBarre{p.getGlobalBounds().height / 2.f};
+    const float degPerPxl{angleMax / halfBarre};
+    const float ballCenter{b.getPosition().y};
+    const float barreCenter{p.getPosition().y + halfBarre};
+    float angle{0.f};
+
+    if(ballCenter < barreCenter) {
+        return ((barreCenter - ballCenter) * degPerPxl);
+    }
+    else if(ballCenter > barreCenter) {
+        return ((ballCenter - barreCenter) * degPerPxl);
+    }
+    else {
+        return angle;
+    }
+}
+///////////////////////////////
 /////// COLLIDE WINDOW
 void collideWindow(Ball& b, sf::RenderTarget *window)
 {
@@ -185,10 +203,10 @@ void collideWindow(Ball& b, sf::RenderTarget *window)
     }
     //Left - Right
     if(b.left() <= b.getRadius() || b.left() >= window->getSize().x - b.getRadius()) {
-        /*if(!b.isOut())
+        if(!b.isOut())
             b.playCrackSound();
-        b.setOut(true);*/
-        b.bounceV();
+        b.setOut(true);
+        //b.bounceV();
     }
 }
 ///////////////////////////////
@@ -197,72 +215,42 @@ void collidePaddle(Ball& b, const Barre& p1, const Barre& p2)
 {
     sf::FloatRect player1(p1.getGlobalBounds());
     sf::FloatRect player2(p2.getGlobalBounds());
+    float halfBarre{p1.getGlobalBounds().height / 2.f};
+    float ballCenter{b.getPosition().y};
+    float p1Center{p1.top() + halfBarre};
+    float p2Center{p2.top() + halfBarre};
 
     // If Ball is inside player 1
     if(player1.intersects(b.getFloatRect())) {
 
-        b.playBounceSound();
+        if(!b.isOut())
+            b.playBounceSound();
 
-        /// PARTIE TRICKY :
-        /// Danc le cas ou un coin de balle et en intersection avec un coin de paddle,
-        /// pour savoir vers quelle direction la balle doit rebondir,
-        /// on récupère l'angle vers lequel elle pointe,
-        /// ce qui permet de savoir si elle monte ou elle descend.
-        /// PARTIE OBVIOUS :
-        /// Dans le cas où la balle viens d'en bas,
-        /// il lui est théoriquement impossible de toucher le haut du paddle,
-        /// ce qui signifie qu'elle devra rebondir sur la zone verticale
-        /// et bien sûr sinon elle rebondira sur la zone horizontale du paddle.
-        /// PARTIE LAST CASE :
-        /// Dernier cas de figure, si la balle n'est ni sur le coin du haut,
-        /// ni sur le coin du bas alors bien sûr elle rebondit verticalement.
-
-        /// TO DO : ADUST POSITION BEFORE BOUNCE TO AVOID BUG
-
-        if(b.top() <= p1.top() && b.bottom() >= p1.top()) {
-            //Corner top
-            // if come from down
-            if(b.getRotation() >= 180 && b.getRotation() < 270)
-                b.bounceV();
-            else
-                b.bounceH();
+        if(ballCenter < p1Center) {
+            b.setRotation(360.f - getAngleReflexion(b, p1));
         }
-        else if(b.top() - b.getRadius() <= p1.bottom() && b.bottom() >= p1.bottom()) {
-            //Corner bottom
-            // if come from up
-            if(b.getRotation() > 90 && b.getRotation() <= 180)
-                b.bounceV();
-            else
-                b.bounceH();
+        else if(ballCenter > p1Center) {
+            b.setRotation(getAngleReflexion(b, p1));
         }
         else {
-            b.bounceV();
+            b.setRotation(0.f);
         }
     }
 
     // If Ball is inside player 2
     if(player2.intersects(b.getFloatRect())) {
 
-        b.playBounceSound();
+        if(!b.isOut())
+            b.playBounceSound();
 
-        if(b.top() <= p2.top() && b.bottom() >= p2.top()) {
-            // Corner top
-            // if ball comes from down
-            if((b.getRotation() > 270 && b.getRotation() < 360) || b.getRotation() == 0)
-                b.bounceV();
-            else
-                b.bounceH();
+        if(ballCenter < p2Center) {
+            b.setRotation(180.f + getAngleReflexion(b, p2));
         }
-        else if(b.top() - b.getRadius() <= p2.bottom() && b.bottom() >= p2.bottom()) {
-            //Corner bottom
-            // if ball comes from up
-            if(b.getRotation() >= 0 && b.getRotation() < 90)
-                b.bounceV();
-            else
-                b.bounceH();
+        else if(ballCenter > p2Center) {
+            b.setRotation(180.f - getAngleReflexion(b, p2));
         }
         else {
-            b.bounceV();
+            b.setRotation(0.f);
         }
     }
 }
