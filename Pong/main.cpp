@@ -78,14 +78,14 @@ public:
         m_box.setFillColor(sf::Color::Transparent);
         m_box.setOutlineThickness(1);
         m_box.setOutlineColor(sf::Color::Red);
-        //setRotation(Outils::rollTheDice(1, 359));
+        startRotation();
     }
 
     float top() const                  { return getPosition().y; }
     float bottom() const               { return (getPosition().y + getGlobalBounds().height); }
     float left() const                 { return getPosition().x; }
     float right() const                { return (getGlobalBounds().left + getGlobalBounds().width); }
-    float getSpeed() const             { return m_speed; }
+    float getSpeed() const             { return m_speed; } /// DEBUG
     float limitLeft() const            { return m_limitLeft; }
     float limitRight() const           { return m_limitRight; }
     bool isOut() const                 { return m_isOut; }
@@ -101,7 +101,7 @@ public:
     void playCrackSound()   { m_soundCrack.play(); }
     void playBounceSound()  { m_soundBounce.play(); }
     void bounceH()          { setRotation(360 - getRotation()); }
-    void bounceV()          { setRotation(90 - (getRotation() - 90)); }
+    //void bounceV()          { setRotation(90 - (getRotation() - 90)); }
 
     void update(const sf::Time& dt)
     {
@@ -137,12 +137,34 @@ private:
     sf::Sound          m_soundCrack;
     sf::SoundBuffer    m_bufferSoundBounce;
     sf::Sound          m_soundBounce;
-    const float        PI           = 3.141592f;
-    float              m_speed      = 100.f;
-    float              m_limitLeft  = 0.f;
-    float              m_limitRight = 0.f;
-    float              m_elapsed    = 0.f;
-    bool               m_isOut      = false;
+    const float        PI             = 3.141592f;
+    float              m_defaultSpeed = 300.f;
+    float              m_speed        = 300.f;
+    float              m_limitLeft    = 0.f;
+    float              m_limitRight   = 0.f;
+    float              m_elapsed      = 0.f;
+    bool               m_isOut        = false;
+
+    void reset()
+    {
+        m_speed = m_defaultSpeed;
+        setPosition(1024/2.f, 576/2.f);
+        m_isOut = false;
+        startRotation();
+    }
+
+    void startRotation()
+    {
+        float angle{static_cast<float>(Outils::rollTheDice(0, 359))};
+
+        if((angle > 225.f && angle < 315.f) ||
+           (angle > 45.f && angle < 135.f))
+        {
+            angle -= 90.f;
+        }
+
+        setRotation(angle);
+    }
 
     void playAnimOut(const sf::Time& dt)
     {
@@ -152,8 +174,7 @@ private:
         }
         else {
             setTexture(&m_texture);
-            setPosition(1024/2.f, 576/2.f);
-            m_isOut = false;
+            reset();
             m_elapsed = 0.f;
         }
     }
@@ -206,51 +227,50 @@ void collideWindow(Ball& b, sf::RenderTarget *window)
         if(!b.isOut())
             b.playCrackSound();
         b.setOut(true);
-        //b.bounceV();
     }
 }
 ///////////////////////////////
 /////// COLLIDE PADDLE
 void collidePaddle(Ball& b, const Barre& p1, const Barre& p2)
 {
-    sf::FloatRect player1(p1.getGlobalBounds());
-    sf::FloatRect player2(p2.getGlobalBounds());
-    float halfBarre{p1.getGlobalBounds().height / 2.f};
-    float ballCenter{b.getPosition().y};
-    float p1Center{p1.top() + halfBarre};
-    float p2Center{p2.top() + halfBarre};
+    if(!b.isOut()) {
+        sf::FloatRect player1(p1.getGlobalBounds());
+        sf::FloatRect player2(p2.getGlobalBounds());
+        float halfBarre{p1.getGlobalBounds().height / 2.f};
+        float ballCenter{b.getPosition().y};
+        float p1Center{p1.top() + halfBarre};
+        float p2Center{p2.top() + halfBarre};
 
-    // If Ball is inside player 1
-    if(player1.intersects(b.getFloatRect())) {
+        // If Ball is inside player 1
+        if(player1.intersects(b.getFloatRect())) {
 
-        if(!b.isOut())
             b.playBounceSound();
 
-        if(ballCenter < p1Center) {
-            b.setRotation(360.f - getAngleReflexion(b, p1));
+            if(ballCenter < p1Center) {
+                b.setRotation(360.f - getAngleReflexion(b, p1));
+            }
+            else if(ballCenter > p1Center) {
+                b.setRotation(getAngleReflexion(b, p1));
+            }
+            else {
+                b.setRotation(0.f);
+            }
         }
-        else if(ballCenter > p1Center) {
-            b.setRotation(getAngleReflexion(b, p1));
-        }
-        else {
-            b.setRotation(0.f);
-        }
-    }
 
-    // If Ball is inside player 2
-    if(player2.intersects(b.getFloatRect())) {
+        // If Ball is inside player 2
+        if(player2.intersects(b.getFloatRect())) {
 
-        if(!b.isOut())
             b.playBounceSound();
 
-        if(ballCenter < p2Center) {
-            b.setRotation(180.f + getAngleReflexion(b, p2));
-        }
-        else if(ballCenter > p2Center) {
-            b.setRotation(180.f - getAngleReflexion(b, p2));
-        }
-        else {
-            b.setRotation(0.f);
+            if(ballCenter < p2Center) {
+                b.setRotation(180.f + getAngleReflexion(b, p2));
+            }
+            else if(ballCenter > p2Center) {
+                b.setRotation(180.f - getAngleReflexion(b, p2));
+            }
+            else {
+                b.setRotation(0.f);
+            }
         }
     }
 }
@@ -267,21 +287,31 @@ const float    P_Y           = (WINDOW_HEIGHT / 2) - (BARRE_HEIGHT / 2);
 const float    BALL_RADIUS   = 16;
 const float    BALL_X        = (WINDOW_WIDTH / 2) - BALL_RADIUS;
 const float    BALL_Y        = (WINDOW_HEIGHT / 2) - BALL_RADIUS;
-const float    SPEED         = 100;
 ///////////////////////////////
 int main()
 {
     sf::RenderWindow window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Sans Titre", sf::Style::Close);
 
+    // BALL
     Ball myBall(BALL_RADIUS, 32);
     myBall.setPosition(BALL_X, BALL_Y);
     myBall.setLimit(P1_X + BARRE_WIDTH, P2_X);
 
+    // PLAYER 1
     Barre player1(BARRE_WIDTH, BARRE_HEIGHT);
     player1.setPosition(P1_X, P_Y);
 
+    // PLAYER 2
     Barre player2(BARRE_WIDTH, BARRE_HEIGHT);
     player2.setPosition(P2_X, P_Y);
+
+    // DOT LINE
+    std::vector<sf::RectangleShape> middleDotLine(9,
+                                                  sf::RectangleShape(sf::Vector2f(10.f, WINDOW_HEIGHT / 18.f)));
+    for(std::size_t i = 0; i < middleDotLine.size(); ++i) {
+        middleDotLine[i].setPosition((WINDOW_WIDTH / 2.f) - 5.f,
+                                     (i*(WINDOW_HEIGHT / 9.f)) + WINDOW_HEIGHT / 36.f);
+    }
 
     /////// CLOCK/DT
     sf::Clock clock;
@@ -352,27 +382,32 @@ int main()
                 window.close();
         }
 
-        /// DEBUG
-        /*
-        if(timer > 1.f) {
-            timer = 0.f;
-            myBall.setRotation(Outils::rollTheDice(1, 360));
-            std::cout << myBall << '\n';
-        }
-        */
-
         /////// UPDATE
+        // Collide
+        collideWindow(myBall, &window);
+        collidePaddle(myBall, player1, player2);
+        // Players
         if(key[P1_UP])   { player1.update(dt, dir::UP); }
         if(key[P2_UP])   { player2.update(dt, dir::UP); }
         if(key[P1_DOWN]) { player1.update(dt, dir::DOWN); }
         if(key[P2_DOWN]) { player2.update(dt, dir::DOWN); }
-
-        collideWindow(myBall, &window);
-        collidePaddle(myBall, player1, player2);
+        // Ball
         myBall.update(dt);
+        // SpeedBall
+        if(!myBall.isOut()) {
+            if(timer > 3.f) {
+                myBall.speedUp();
+                timer = 0.f;
+            }
+        }
+        else {
+            timer = 0.f;
+        }
 
         /////// DRAW
         window.clear();
+        for(const auto& x: middleDotLine)
+            window.draw(x);
         window.draw(player1);
         window.draw(player2);
         window.draw(myBall);
