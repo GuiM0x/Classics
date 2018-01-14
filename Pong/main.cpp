@@ -41,7 +41,7 @@ public:
         m_box1(sf::RectangleShape()),
         m_box2(sf::RectangleShape())
     {
-        m_font.loadFromFile("assets/fonts/arial.ttf");
+        m_font.loadFromFile("assets/fonts/OldLondon.ttf");
 
         for(auto it = m_playersScore.begin(); it != m_playersScore.end(); ++it) {
             it->second.setFont(m_font);
