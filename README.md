@@ -10,4 +10,6 @@ Really fun to program and to see how neighbourhood evolves.
 
 ### Pong
 
+A game classical repository without Pong is like a beer without lather !
+
 ![Imgur](https://i.imgur.com/STwA1pX.png)
