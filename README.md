@@ -10,4 +10,4 @@ Really fun to program and to see how neighbourhood evolves.
 
 ### Pong
 
-![Imgur](https://i.imgur.com/cGbvHfS.png)
+![Imgur](https://i.imgur.com/S3C27Jb.png)
