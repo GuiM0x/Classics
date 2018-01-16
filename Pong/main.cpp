@@ -184,7 +184,7 @@ public:
         m_soundBounce.setBuffer(m_bufferSoundBounce);
         // Origin point (for perfect rotation in middle of texture)
         setOrigin(radius, radius);
-        /// View Collide box (draw not necessary, but box is used in collide sys)
+        /// View Collide box (draw not necessary, but box's datas are used in collide sys)
         m_box.setFillColor(sf::Color::Transparent);
         m_box.setOutlineThickness(1);
         m_box.setOutlineColor(sf::Color::Red);
