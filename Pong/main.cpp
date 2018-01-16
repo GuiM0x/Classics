@@ -119,8 +119,8 @@ private:
 
     void draw(sf::RenderTarget& target, sf::RenderStates states) const
     {
-        target.draw(m_box1);
-        target.draw(m_box2);
+        //target.draw(m_box1);
+        //target.draw(m_box2);
         for(auto it = m_playersScore.begin(); it != m_playersScore.end(); ++it) {
             target.draw(it->second);
         }
@@ -393,7 +393,7 @@ void collidePaddle(Ball& b, const Paddle& p1, const Paddle& p2)
 //////////////////////////////////////////////
 int main()
 {
-    sf::RenderWindow window(sf::VideoMode(WINDOW_W, WINDOW_H), "Sans Titre", sf::Style::Close);
+    sf::RenderWindow window(sf::VideoMode(WINDOW_W, WINDOW_H), "Pong", sf::Style::Close);
 
     // BALL
     Ball myBall(BALL_RADIUS, 32);
@@ -524,7 +524,7 @@ int main()
         window.draw(player1);
         window.draw(player2);
         window.draw(myBall);
-        window.draw(myBall.getBox()); /// DEBUG
+        //window.draw(myBall.getBox()); /// DEBUG
         window.draw(leaderboard);
         window.display();
     }
