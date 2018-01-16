@@ -1,4 +1,4 @@
-## Classics Games For fun
+## Classics Games For Fun
 
 ### GameOfLife
 
@@ -13,3 +13,7 @@ Really fun to program and to see how neighbourhood evolves.
 A game classical repository without Pong is like a beer without lather !
 
 ![Imgur](https://i.imgur.com/STwA1pX.png)
+
+### Tetris
+
+Incoming...
