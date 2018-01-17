@@ -9,8 +9,8 @@
 /////// MOVE PIECE
 void movePiece(std::vector<sf::Sprite>& v, int dx = 0, int dy = 0)
 {
-    for(std::size_t i = 0; i < v.size(); ++i){
-        v[i].move(20*dx, 20*dy);
+    for(auto&& x : v){
+        x.move(20*dx, 20*dy);
     }
 }
 ///////////////////////////////
@@ -93,7 +93,7 @@ int main()
 
         /////// DRAW
         window.clear();
-        for(auto x : piece)
+        for(const auto& x : piece)
             window.draw(x);
         window.display();
     }
