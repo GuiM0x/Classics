@@ -6,18 +6,41 @@
 #include "include/Outils.h"
 
 ///////////////////////////////
-/////// RESET KEY STATE
-void reset_key_state(std::vector<bool>& v){
-    for(auto&& x : v)
-        x = false;
+/////// MOVE PIECE
+void movePiece(std::vector<sf::Sprite>& v, int dx = 0, int dy = 0)
+{
+    for(std::size_t i = 0; i < v.size(); ++i){
+        v[i].move(20*dx, 20*dy);
+    }
 }
-
-enum keys{UP, DOWN, LEFT, RIGHT, KEY_MAX};
-std::vector<bool> key(KEY_MAX, false);
 ///////////////////////////////
 int main()
 {
     sf::RenderWindow window(sf::VideoMode(1024, 576), "Tetris");
+
+    sf::Texture t;
+    t.loadFromFile("assets/img/tiles.png");
+
+    sf::Sprite s(t);
+
+    // Pieces represented in 2D Grid [7][4]
+    const std::vector<std::vector<unsigned>> pieces{
+        {0,2,4,6}, // I
+        {2,4,6,7}, // L
+        {3,5,6,7}, // J
+        {4,5,6,7}, // O
+        {3,4,5,6}, // Z
+        {2,4,5,7}, // S
+        {2,4,5,6}  // T
+    };
+
+    // One Piece
+    std::size_t n{6};
+    std::vector<sf::Sprite> piece;
+    for(std::size_t i = 0; i < 4; ++i){
+        piece.push_back(s);
+        piece.back().setPosition((pieces[n][i]%2)*20, (pieces[n][i]/2)*20);
+    }
 
     /////// CLOCK/DT
     sf::Clock clock;
@@ -36,10 +59,9 @@ int main()
             if(event.type == sf::Event::KeyPressed)
             {
                 //Directions
-				if (event.key.code == sf::Keyboard::Z) { key[UP]    = true; }
-				if (event.key.code == sf::Keyboard::S) { key[DOWN]  = true; }
-				if (event.key.code == sf::Keyboard::Q) { key[LEFT]  = true; }
-				if (event.key.code == sf::Keyboard::D) { key[RIGHT] = true; }
+				if (event.key.code == sf::Keyboard::S) { movePiece(piece, 0, 1);  }
+				if (event.key.code == sf::Keyboard::Q) { movePiece(piece, -1, 0); }
+				if (event.key.code == sf::Keyboard::D) { movePiece(piece, 1, 0);  }
 
 				if(event.key.code == sf::Keyboard::Escape)
                     window.close();
@@ -48,11 +70,6 @@ int main()
             /////// KEY RELEASED
 			if (event.type == sf::Event::KeyReleased)
 			{
-				//Directions
-				if (event.key.code == sf::Keyboard::Z) { key[UP]    = false; }
-				if (event.key.code == sf::Keyboard::S) { key[DOWN]  = false; }
-				if (event.key.code == sf::Keyboard::Q) { key[LEFT]  = false; }
-				if (event.key.code == sf::Keyboard::D) { key[RIGHT] = false; }
 
 			}
 
@@ -70,12 +87,14 @@ int main()
                 window.close();
         }
 
+
         /////// UPDATE
 
 
         /////// DRAW
         window.clear();
-
+        for(auto x : piece)
+            window.draw(x);
         window.display();
     }
 
