@@ -1,10 +1,37 @@
 #include <iostream>
+#include <cmath>
+#include <cassert>
 
 #include <SFML/Graphics.hpp>
 #include <SFML/System.hpp>
 
 #include "include/Outils.h"
 
+///////////////////////////////
+/////// CREATE PIECE
+std::vector<sf::Sprite> createPiece(const std::vector<unsigned>& patron, const sf::Sprite& s, const sf::Sprite& empty_s)
+{
+    double sizeMatrice{sqrt(patron.size())};
+    assert(round(sizeMatrice) == sizeMatrice && "Piece must be a squared matrice.");
+    sizeMatrice = static_cast<std::size_t>(sizeMatrice);
+
+    std::vector<sf::Sprite> tmp;
+
+    for(std::size_t i=0; i<sizeMatrice; ++i){
+        for(std::size_t j=0; j<sizeMatrice; ++j){
+
+            // Provisoire
+            if(patron[(i*sizeMatrice)+j] == 1)
+                tmp.push_back(s);
+            else
+                tmp.push_back(empty_s);
+
+            tmp.back().setPosition(j*s.getGlobalBounds().width, i*s.getGlobalBounds().height);
+        }
+    }
+
+    return tmp;
+}
 ///////////////////////////////
 /////// MOVE PIECE
 void movePiece(std::vector<sf::Sprite>& v, int dx = 0, int dy = 0)
@@ -14,33 +41,60 @@ void movePiece(std::vector<sf::Sprite>& v, int dx = 0, int dy = 0)
     }
 }
 ///////////////////////////////
+/////// ROTATE PIECE (only clockwise for the moment)
+void rotatePiece(std::vector<sf::Sprite>& piece)
+{
+    double sizeMatrice{sqrt(piece.size())};
+    unsigned rows{static_cast<unsigned>(sizeMatrice)};
+    unsigned cols{rows};
+
+    std::vector<sf::Sprite> tmp;
+
+    // Départ de lecture en partant de la case en bas à gauche
+    std::size_t start{piece.size() - cols};
+
+    for(std::size_t i=start; i<piece.size(); ++i){
+
+        std::size_t index{i};
+
+        for(unsigned j=0; j<rows; ++j){
+            tmp.push_back(piece[index]);
+            index -= cols;
+        }
+    }
+
+    for(unsigned i=0; i<rows; ++i){
+        for(unsigned j=0; j<cols; ++j){
+            tmp[(i*cols)+j].setPosition(piece[(i*cols)+j].getPosition());
+        }
+    }
+
+    piece = tmp;
+}
+
+///////////////////////////////
 int main()
 {
     sf::RenderWindow window(sf::VideoMode(1024, 576), "Tetris");
 
     sf::Texture t;
     t.loadFromFile("assets/img/tiles.png");
-
     sf::Sprite s(t);
 
-    // Pieces represented in 2D Grid [7][4]
-    const std::vector<std::vector<unsigned>> pieces{
-        {0,2,4,6}, // I
-        {2,4,6,7}, // L
-        {3,5,6,7}, // J
-        {4,5,6,7}, // O
-        {3,4,5,6}, // Z
-        {2,4,5,7}, // S
-        {2,4,5,6}  // T
-    };
+    /// DEBUG
+    sf::Texture empty_t;
+    empty_t.loadFromFile("assets/img/empty_tile.png");
+    sf::Sprite empty_s(empty_t);
 
-    // One Piece
-    std::size_t n{6};
-    std::vector<sf::Sprite> piece;
-    for(std::size_t i = 0; i < 4; ++i){
-        piece.push_back(s);
-        piece.back().setPosition((pieces[n][i]%2)*20, (pieces[n][i]/2)*20);
-    }
+    const std::vector<std::vector<unsigned>> patrons{{1, 1, 1, 0, 1, 0, 0, 0, 0},  // T
+                                                     {0, 1, 0, 0, 1, 0, 1, 1, 0},  // J
+                                                     {0, 1, 0, 0, 1, 0, 0, 1, 1},  // L
+                                                     {0, 1, 1, 1, 1, 0, 0, 0, 0},  // S
+                                                     {1, 1, 0, 0, 1, 1, 0, 0, 0},  // Z
+                                                     {0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0},  // I
+                                                     {1, 1, 1, 1}};  // O
+
+    std::vector<sf::Sprite> piece{createPiece(patrons[0], s, empty_s)}; // one piece to test
 
     /////// CLOCK/DT
     sf::Clock clock;
@@ -59,19 +113,23 @@ int main()
             if(event.type == sf::Event::KeyPressed)
             {
                 //Directions
-				if (event.key.code == sf::Keyboard::S) { movePiece(piece, 0, 1);  }
+				if (event.key.code == sf::Keyboard::S) { movePiece(piece, 0, 1); }
 				if (event.key.code == sf::Keyboard::Q) { movePiece(piece, -1, 0); }
-				if (event.key.code == sf::Keyboard::D) { movePiece(piece, 1, 0);  }
+				if (event.key.code == sf::Keyboard::D) { movePiece(piece, 1, 0); }
+				if (event.key.code == sf::Keyboard::R) {
+                    // Rotate
+                    rotatePiece(piece);
+				}
 
-				if(event.key.code == sf::Keyboard::Escape)
+                if(event.key.code == sf::Keyboard::Escape)
                     window.close();
             }
 
             /////// KEY RELEASED
-			if (event.type == sf::Event::KeyReleased)
-			{
+            if (event.type == sf::Event::KeyReleased)
+            {
 
-			}
+            }
 
             /////// MOUSE PRESSED
             if(event.type == sf::Event::MouseButtonPressed) {
@@ -93,8 +151,8 @@ int main()
 
         /////// DRAW
         window.clear();
-        for(const auto& x : piece)
-            window.draw(x);
+        for(const auto& part : piece)
+            window.draw(part);
         window.display();
     }
 
