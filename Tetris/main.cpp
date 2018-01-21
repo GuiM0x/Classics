@@ -21,10 +21,13 @@ std::vector<sf::Sprite> createPiece(const std::vector<unsigned>& patron, const s
         for(std::size_t j=0; j<sizeMatrice; ++j){
 
             // Provisoire
-            if(patron[(i*sizeMatrice)+j] == 1)
+            if(patron[(i*sizeMatrice)+j] == 1){
                 tmp.push_back(s);
-            else
-                tmp.push_back(empty_s);
+            }
+            else{
+                //tmp.push_back(empty_s); /// DEBUG
+                tmp.push_back(sf::Sprite());
+            }
 
             tmp.back().setPosition(j*s.getGlobalBounds().width, i*s.getGlobalBounds().height);
         }
@@ -71,7 +74,29 @@ void rotatePiece(std::vector<sf::Sprite>& piece)
 
     piece = tmp;
 }
+///////////////////////////////
+/////// COLLIDE PLAYFIELD
+bool collidePlayfield(std::vector<sf::Sprite>& piece, const sf::RectangleShape& playField)
+{
+    for(auto&& part : piece){
+        if(part.getTexture() != nullptr){
+            // Left ?
+            if(part.getGlobalBounds().left <= playField.getGlobalBounds().left){
+                return true;
+            }
+            // Right ?
+            if(part.getGlobalBounds().left + part.getGlobalBounds().width >= playField.getGlobalBounds().left + playField.getGlobalBounds().width){
+                return true;
+            }
+            // Down ?
+            if(part.getGlobalBounds().top + part.getGlobalBounds().height >= playField.getGlobalBounds().top + playField.getGlobalBounds().height){
+                return true;
+            }
+        }
+    }
 
+    return false;
+}
 ///////////////////////////////
 int main()
 {
@@ -86,24 +111,39 @@ int main()
     empty_t.loadFromFile("assets/img/empty_tile.png");
     sf::Sprite empty_s(empty_t);
 
-    const std::vector<std::vector<unsigned>> patrons{{1, 1, 1, 0, 1, 0, 0, 0, 0},  // T
-                                                     {0, 1, 0, 0, 1, 0, 1, 1, 0},  // J
-                                                     {0, 1, 0, 0, 1, 0, 0, 1, 1},  // L
+    // Pattern default : {0, 0, 0, 0, 0, 0, 0, 0, 0} (9);
+    // Pattern default : {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} (16);
+    const std::vector<std::vector<unsigned>> patrons{{0, 1, 0, 1, 1, 1, 0, 0, 0},  // T
+                                                     {1, 0, 0, 1, 1, 1, 0, 0, 0},  // J
+                                                     {0, 0, 1, 1, 1, 1, 0, 0, 0},  // L
                                                      {0, 1, 1, 1, 1, 0, 0, 0, 0},  // S
                                                      {1, 1, 0, 0, 1, 1, 0, 0, 0},  // Z
                                                      {0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0},  // I
-                                                     {1, 1, 1, 1}};  // O
+                                                     {1, 1, 1, 1},
+                                                     {0, 1, 0, 1, 1, 1, 0, 1, 0},  // +
+                                                     {1, 1, 1, 0, 1, 0, 1, 0, 0},  // >
+                                                     {0, 1, 1, 0, 1, 0, 1, 1, 0},  // Big S
+                                                     {1, 1, 0, 0, 1, 0, 0, 1, 1},  // Big Z
+                                                     {0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0}}; // BOOMRANG
 
-    std::vector<sf::Sprite> piece{createPiece(patrons[0], s, empty_s)}; // one piece to test
+    // Create one piece
+    std::vector<sf::Sprite> piece{createPiece(patrons[0], s, empty_s)};
+
+    // Create PlayField
+    sf::RectangleShape playField{sf::Vector2f(200.f, 400.f)};
+    playField.setFillColor(sf::Color(230, 230, 230));
 
     /////// CLOCK/DT
     sf::Clock clock;
     sf::Time dt;
+    float timer{0.f};   // Used for auto move down
+    float delayMax{1.f}; // Used to control the auto move speed, less is the number, faster is the descent
 
     /////// GAME LOOP
     while (window.isOpen())
     {
         dt = clock.restart();
+        timer += dt.asSeconds();
 
         /////// EVENTS
         sf::Event event;
@@ -147,10 +187,20 @@ int main()
 
 
         /////// UPDATE
+        if(timer >= delayMax) {
+            movePiece(piece, 0, 1);
+            timer = 0.f;
+            std::cout << piece[0].getGlobalBounds().left << '\n'; /// DEBUG
+            std::cout << playField.getGlobalBounds().left << '\n'; /// DEBUG
+        }
 
+        if(collidePlayfield(piece, playField)){
+            std::cout << "Collision !\n"; /// DEBUG
+        }
 
         /////// DRAW
         window.clear();
+        window.draw(playField);
         for(const auto& part : piece)
             window.draw(part);
         window.display();
