@@ -10,6 +10,14 @@
 #include "include/Outils.h"
 
 ///////////////////////////////
+/////// ENUM DIRECTION
+enum dir{
+    DOWN,
+    LEFT,
+    RIGHT,
+    DIR_MAX
+};
+///////////////////////////////
 /////// CREATE PIECE
 std::vector<sf::Sprite> createPiece(const std::vector<unsigned>& patron, const sf::Sprite& s, const sf::Sprite& empty_s)
 {
@@ -74,7 +82,30 @@ void rotatePiece(std::vector<sf::Sprite>& piece)
 
     piece = tmp;
 }
+///////////////////////////////
+/////// FIND COLLIDE
+bool collidePlayField(const std::vector<sf::Sprite>& piece, float playFieldBorder, unsigned dir = dir::DOWN)
+{
+    bool isCollide{false};
 
+    for(const auto& s : piece){
+        if(s.getTexture() != nullptr){
+            if(dir == dir::DOWN){
+                isCollide = (s.getGlobalBounds().top + s.getGlobalBounds().height >= playFieldBorder);
+            }
+            if(dir == dir::LEFT){
+                isCollide = (s.getGlobalBounds().left <= playFieldBorder);
+            }
+            if(dir == dir::RIGHT){
+                isCollide = (s.getGlobalBounds().left + s.getGlobalBounds().width >= playFieldBorder);
+            }
+            if(isCollide)
+                break;
+        }
+    }
+
+    return isCollide;
+}
 ///////////////////////////////
 int main()
 {
@@ -134,32 +165,20 @@ int main()
             if(event.type == sf::Event::KeyPressed)
             {
                 // PRESSED DOWN
-				if (event.key.code == sf::Keyboard::S) {
-                        // TO DO : Test empty sprite
-                        auto find_collide = std::find_if(piece.begin(), piece.end(),
-                                                         [playFieldDown](const sf::Sprite& s)
-                                                            { return (s.getGlobalBounds().top + s.getGlobalBounds().height >= playFieldDown && s.getTexture() != nullptr); });
-                        if(find_collide == piece.end())
-                            movePiece(piece, 0, 1);
+                if (event.key.code == sf::Keyboard::S) {
+                    if(!collidePlayField(piece, playFieldDown, dir::DOWN))
+                        movePiece(piece, 0, 1);
                 }
                 // PRESSED LEFT
-				if (event.key.code == sf::Keyboard::Q) {
-                        // TO DO : Test empty sprite
-                        auto find_collide = std::find_if(piece.begin(), piece.end(),
-                                                         [playFieldLeft](const sf::Sprite& s)
-                                                            { return (s.getGlobalBounds().left <= playFieldLeft && s.getTexture() != nullptr); });
-                        if(find_collide == piece.end())
-                            movePiece(piece, -1, 0);
+                if (event.key.code == sf::Keyboard::Q) {
+                    if(!collidePlayField(piece, playFieldLeft, dir::LEFT))
+                        movePiece(piece, -1, 0);
                 }
                 // PRESSED RIGHT
-				if (event.key.code == sf::Keyboard::D) {
-                        // TO DO : Test empty sprite
-                        auto find_collide = std::find_if(piece.begin(), piece.end(),
-                                                         [playFieldRight](const sf::Sprite& s)
-                                                            { return (s.getGlobalBounds().left + s.getGlobalBounds().width >= playFieldRight && s.getTexture() != nullptr); });
-                        if(find_collide == piece.end())
-                            movePiece(piece, 1, 0);
-				}
+                if (event.key.code == sf::Keyboard::D) {
+                    if(!collidePlayField(piece, playFieldRight, dir::RIGHT))
+                        movePiece(piece, 1, 0);
+                }
 				// PRESSED ROTATE
 				if (event.key.code == sf::Keyboard::R) {
                     rotatePiece(piece);
@@ -192,10 +211,7 @@ int main()
 
         /////// UPDATE
         if(timer >= delayMax) {
-            auto find_collide = std::find_if(piece.begin(), piece.end(),
-                                             [playFieldDown](const sf::Sprite& s)
-                                                 { return (s.getGlobalBounds().top + s.getGlobalBounds().height >= playFieldDown && s.getTexture() != nullptr); });
-            if(find_collide == piece.end())
+            if(!collidePlayField(piece, playFieldDown, dir::DOWN))
                 movePiece(piece, 0, 1);
 
             timer = 0.f;
