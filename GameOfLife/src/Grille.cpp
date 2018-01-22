@@ -110,9 +110,9 @@ void Grille::mouseCurrentIndex()
 }
 
 ////////// GET ALIVE NEIGHGBOURHOOD
-std::size_t Grille::getAliveNeighbourhood(int cellId) const
+std::size_t Grille::getAliveNeighbourhood(std::size_t cellId) const
 {
-    std::vector<int> tmp_id;
+    std::vector<std::size_t> tmp_id;
     tmp_id.push_back((cellId - 1) - m_cols); // topLeft
     tmp_id.push_back(cellId - m_cols); // top
     tmp_id.push_back((cellId + 1) - m_cols); // topRight
@@ -125,7 +125,7 @@ std::size_t Grille::getAliveNeighbourhood(int cellId) const
     std::size_t nb_neighbour{0};
 
     for(const auto& x : tmp_id) {
-        if(x >= 0 && x <= static_cast<int>(m_cells.size()-1) && m_cells[x]->isAlive())
+        if(x >= 0 && x <= m_cells.size()-1 && m_cells[x]->isAlive())
             ++nb_neighbour;
     }
 

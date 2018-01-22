@@ -60,7 +60,7 @@ private:
 	void draw(sf::RenderTarget& target, sf::RenderStates states) const;
 	void mouseCurrentIndex();
 	std::size_t searchIndexByPosition(float pos_x, float pos_y) const;
-	std::size_t getAliveNeighbourhood(int cellId) const;
+	std::size_t getAliveNeighbourhood(std::size_t cellId) const;
 
 /////// INLINE MEMBERS
 
