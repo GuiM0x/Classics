@@ -1,5 +1,7 @@
 #include <iostream>
 #include <cmath>
+#include <algorithm>
+#include <functional>
 #include <cassert>
 
 #include <SFML/Graphics.hpp>
@@ -53,15 +55,13 @@ void rotatePiece(std::vector<sf::Sprite>& piece)
 
     std::vector<sf::Sprite> tmp;
 
-    // Départ de lecture en partant de la case en bas à gauche
+    // Start Reading bottom-left
     std::size_t start{piece.size() - cols};
 
     for(std::size_t i=start; i<piece.size(); ++i){
-
         std::size_t index{i};
-
         for(unsigned j=0; j<rows; ++j){
-            tmp.push_back(piece[index]);
+            tmp.push_back(piece[index]); // Linear push to tmp
             index -= cols;
         }
     }
@@ -74,29 +74,7 @@ void rotatePiece(std::vector<sf::Sprite>& piece)
 
     piece = tmp;
 }
-///////////////////////////////
-/////// COLLIDE PLAYFIELD
-bool collidePlayfield(std::vector<sf::Sprite>& piece, const sf::RectangleShape& playField)
-{
-    for(auto&& part : piece){
-        if(part.getTexture() != nullptr){
-            // Left ?
-            if(part.getGlobalBounds().left <= playField.getGlobalBounds().left){
-                return true;
-            }
-            // Right ?
-            if(part.getGlobalBounds().left + part.getGlobalBounds().width >= playField.getGlobalBounds().left + playField.getGlobalBounds().width){
-                return true;
-            }
-            // Down ?
-            if(part.getGlobalBounds().top + part.getGlobalBounds().height >= playField.getGlobalBounds().top + playField.getGlobalBounds().height){
-                return true;
-            }
-        }
-    }
 
-    return false;
-}
 ///////////////////////////////
 int main()
 {
@@ -132,6 +110,9 @@ int main()
     // Create PlayField
     sf::RectangleShape playField{sf::Vector2f(200.f, 400.f)};
     playField.setFillColor(sf::Color(230, 230, 230));
+    const float playFieldLeft{playField.getGlobalBounds().left};
+    const float playFieldRight{playField.getGlobalBounds().left + playField.getGlobalBounds().width};
+    const float playFieldDown{playField.getGlobalBounds().top + playField.getGlobalBounds().height};
 
     /////// CLOCK/DT
     sf::Clock clock;
@@ -152,15 +133,38 @@ int main()
             /////// KEY PRESSED
             if(event.type == sf::Event::KeyPressed)
             {
-                //Directions
-				if (event.key.code == sf::Keyboard::S) { movePiece(piece, 0, 1); }
-				if (event.key.code == sf::Keyboard::Q) { movePiece(piece, -1, 0); }
-				if (event.key.code == sf::Keyboard::D) { movePiece(piece, 1, 0); }
+                // PRESSED DOWN
+				if (event.key.code == sf::Keyboard::S) {
+                        // TO DO : Test empty sprite
+                        auto find_collide = std::find_if(piece.begin(), piece.end(),
+                                                         [playFieldDown](const sf::Sprite& s)
+                                                            { return (s.getGlobalBounds().top + s.getGlobalBounds().height >= playFieldDown && s.getTexture() != nullptr); });
+                        if(find_collide == piece.end())
+                            movePiece(piece, 0, 1);
+                }
+                // PRESSED LEFT
+				if (event.key.code == sf::Keyboard::Q) {
+                        // TO DO : Test empty sprite
+                        auto find_collide = std::find_if(piece.begin(), piece.end(),
+                                                         [playFieldLeft](const sf::Sprite& s)
+                                                            { return (s.getGlobalBounds().left <= playFieldLeft && s.getTexture() != nullptr); });
+                        if(find_collide == piece.end())
+                            movePiece(piece, -1, 0);
+                }
+                // PRESSED RIGHT
+				if (event.key.code == sf::Keyboard::D) {
+                        // TO DO : Test empty sprite
+                        auto find_collide = std::find_if(piece.begin(), piece.end(),
+                                                         [playFieldRight](const sf::Sprite& s)
+                                                            { return (s.getGlobalBounds().left + s.getGlobalBounds().width >= playFieldRight && s.getTexture() != nullptr); });
+                        if(find_collide == piece.end())
+                            movePiece(piece, 1, 0);
+				}
+				// PRESSED ROTATE
 				if (event.key.code == sf::Keyboard::R) {
-                    // Rotate
                     rotatePiece(piece);
 				}
-
+                // PRESSED ESCAPE
                 if(event.key.code == sf::Keyboard::Escape)
                     window.close();
             }
@@ -188,14 +192,13 @@ int main()
 
         /////// UPDATE
         if(timer >= delayMax) {
-            movePiece(piece, 0, 1);
-            timer = 0.f;
-            std::cout << piece[0].getGlobalBounds().left << '\n'; /// DEBUG
-            std::cout << playField.getGlobalBounds().left << '\n'; /// DEBUG
-        }
+            auto find_collide = std::find_if(piece.begin(), piece.end(),
+                                             [playFieldDown](const sf::Sprite& s)
+                                                 { return (s.getGlobalBounds().top + s.getGlobalBounds().height >= playFieldDown && s.getTexture() != nullptr); });
+            if(find_collide == piece.end())
+                movePiece(piece, 0, 1);
 
-        if(collidePlayfield(piece, playField)){
-            std::cout << "Collision !\n"; /// DEBUG
+            timer = 0.f;
         }
 
         /////// DRAW
