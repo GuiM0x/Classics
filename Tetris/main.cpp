@@ -1,7 +1,5 @@
 #include <iostream>
 #include <cmath>
-#include <algorithm>
-#include <functional>
 #include <cassert>
 
 #include <SFML/Graphics.hpp>
@@ -9,7 +7,7 @@
 
 #include "include/Outils.h"
 
-///////////////////////////////
+//////////////////////////////////////////////////////////
 /////// ENUM DIRECTION
 enum dir{
     DOWN,
@@ -17,7 +15,7 @@ enum dir{
     RIGHT,
     DIR_MAX
 };
-///////////////////////////////
+//////////////////////////////////////////////////////////
 /////// CREATE PIECE
 std::vector<sf::Sprite> createPiece(const std::vector<unsigned>& patron, const sf::Sprite& s, const sf::Sprite& empty_s)
 {
@@ -45,7 +43,7 @@ std::vector<sf::Sprite> createPiece(const std::vector<unsigned>& patron, const s
 
     return tmp;
 }
-///////////////////////////////
+//////////////////////////////////////////////////////////
 /////// MOVE PIECE
 void movePiece(std::vector<sf::Sprite>& v, int dx = 0, int dy = 0)
 {
@@ -53,7 +51,7 @@ void movePiece(std::vector<sf::Sprite>& v, int dx = 0, int dy = 0)
         x.move(20*dx, 20*dy);
     }
 }
-///////////////////////////////
+//////////////////////////////////////////////////////////
 /////// ROTATE PIECE (only clockwise for the moment)
 void rotatePiece(std::vector<sf::Sprite>& piece)
 {
@@ -82,7 +80,7 @@ void rotatePiece(std::vector<sf::Sprite>& piece)
 
     piece = tmp;
 }
-///////////////////////////////
+//////////////////////////////////////////////////////////
 /////// FIND COLLIDE
 bool collidePlayField(const std::vector<sf::Sprite>& piece, float playFieldBorder, unsigned dir = dir::DOWN)
 {
@@ -106,7 +104,27 @@ bool collidePlayField(const std::vector<sf::Sprite>& piece, float playFieldBorde
 
     return isCollide;
 }
-///////////////////////////////
+//////////////////////////////////////////////////////////
+/////// RANDOM PIECE
+std::size_t randomPiece(int minVal, int maxVal)
+{
+    return static_cast<std::size_t>(Outils::rollTheDice(minVal, maxVal));
+}
+//////////////////////////////////////////////////////////
+/////// MOVE PIECE ACTIVE PIECE INTO PLAYFIELD STATIC PIECES
+void moveToPlayfieldPieces(std::vector<sf::Sprite>& activePiece, std::vector<std::vector<sf::Sprite>>& playFieldPieces)
+{
+    playFieldPieces.push_back(std::move(activePiece));
+    activePiece.clear();
+}
+//////////////////////////////////////////////////////////
+/////// LAUNCH NEXT PIECE
+void launchNextPiece(std::vector<sf::Sprite>& activePiece, std::vector<sf::Sprite>& nextPiece)
+{
+    activePiece = std::move(nextPiece);
+    nextPiece.clear();
+}
+//////////////////////////////////////////////////////////
 int main()
 {
     sf::RenderWindow window(sf::VideoMode(1024, 576), "Tetris");
@@ -135,15 +153,24 @@ int main()
                                                      {1, 1, 0, 0, 1, 0, 0, 1, 1},  // Big Z
                                                      {0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0}}; // BOOMRANG
 
-    // Create one piece
-    std::vector<sf::Sprite> piece{createPiece(patrons[0], s, empty_s)};
+    // Create piece
+    std::size_t index{randomPiece(0, patrons.size()-1)};
+    std::vector<sf::Sprite> piece{createPiece(patrons[index], s, empty_s)};
+
+    // Create Next Piece
+    index = randomPiece(0, patrons.size()-1);
+    std::vector<sf::Sprite> nextPiece{createPiece(patrons[index], s, empty_s)};
+
+    // Vector that contains concrete pieces on PlayField
+    std::vector<std::vector<sf::Sprite>> playFieldPieces;
 
     // Create PlayField
     sf::RectangleShape playField{sf::Vector2f(200.f, 400.f)};
     playField.setFillColor(sf::Color(230, 230, 230));
+    //const float playFieldTop{playField.getGlobalBounds().top};
+    const float playFieldBottom{playField.getGlobalBounds().top + playField.getGlobalBounds().height};
     const float playFieldLeft{playField.getGlobalBounds().left};
     const float playFieldRight{playField.getGlobalBounds().left + playField.getGlobalBounds().width};
-    const float playFieldDown{playField.getGlobalBounds().top + playField.getGlobalBounds().height};
 
     /////// CLOCK/DT
     sf::Clock clock;
@@ -151,6 +178,7 @@ int main()
     float timer{0.f};   // Used for auto move down
     float delayMax{1.f}; // Used to control the auto move speed, less is the number, faster is the descent
 
+    //////////////////////////////////////////////////////////
     /////// GAME LOOP
     while (window.isOpen())
     {
@@ -166,7 +194,7 @@ int main()
             {
                 // PRESSED DOWN
                 if (event.key.code == sf::Keyboard::S) {
-                    if(!collidePlayField(piece, playFieldDown, dir::DOWN))
+                    if(!collidePlayField(piece, playFieldBottom, dir::DOWN))
                         movePiece(piece, 0, 1);
                 }
                 // PRESSED LEFT
@@ -210,9 +238,16 @@ int main()
 
 
         /////// UPDATE
+        // TO DO : collide pieces on playfield
         if(timer >= delayMax) {
-            if(!collidePlayField(piece, playFieldDown, dir::DOWN))
+            if(!collidePlayField(piece, playFieldBottom, dir::DOWN)){
                 movePiece(piece, 0, 1);
+            } else {
+                moveToPlayfieldPieces(piece, playFieldPieces);
+                launchNextPiece(piece, nextPiece);
+                index = randomPiece(0, patrons.size()-1);
+                nextPiece = createPiece(patrons[index], s, empty_s);
+            }
 
             timer = 0.f;
         }
@@ -222,6 +257,11 @@ int main()
         window.draw(playField);
         for(const auto& part : piece)
             window.draw(part);
+        for(const auto& piece : playFieldPieces){
+            for(const auto& part : piece){
+                window.draw(part);
+            }
+        }
         window.display();
     }
 
