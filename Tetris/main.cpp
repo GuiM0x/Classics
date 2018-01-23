@@ -16,6 +16,20 @@ enum dir{
     DIR_MAX
 };
 //////////////////////////////////////////////////////////
+/////// PATRONS OF PIECE
+// Pattern default : {0, 0, 0, 0, 0, 0, 0, 0, 0} (9);
+// Pattern default : {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} (16);
+const std::vector<std::vector<unsigned>> patrons{{0, 1, 0, 1, 1, 1, 0, 0, 0},  // T
+                                                 {1, 0, 0, 1, 1, 1, 0, 0, 0},  // J
+                                                 {0, 0, 1, 1, 1, 1, 0, 0, 0},  // L
+                                                 {0, 1, 1, 1, 1, 0, 0, 0, 0},  // S
+                                                 {1, 1, 0, 0, 1, 1, 0, 0, 0},  // Z
+                                                 {0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0},  // I
+                                                 {1, 1, 1, 1},
+                                                 {0, 1, 0, 1, 1, 1, 0, 1, 0},  // +
+                                                 {1, 1, 1, 0, 1, 0, 1, 0, 0},  // >
+                                                 {0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0}}; // BOOMRANG
+//////////////////////////////////////////////////////////
 /////// CREATE PIECE
 std::vector<sf::Sprite> createPiece(const std::vector<unsigned>& patron, const sf::Sprite& s, const sf::Sprite& empty_s)
 {
@@ -27,8 +41,6 @@ std::vector<sf::Sprite> createPiece(const std::vector<unsigned>& patron, const s
 
     for(std::size_t i=0; i<sizeMatrice; ++i){
         for(std::size_t j=0; j<sizeMatrice; ++j){
-
-            // Provisoire
             if(patron[(i*sizeMatrice)+j] == 1){
                 tmp.push_back(s);
             }
@@ -105,13 +117,18 @@ bool collidePlayField(const std::vector<sf::Sprite>& piece, float playFieldBorde
     return isCollide;
 }
 //////////////////////////////////////////////////////////
-/////// RANDOM PIECE
-std::size_t randomPiece(int minVal, int maxVal)
+/////// RANDOM ID
+std::size_t randomID(int minVal, int maxVal)
 {
+    assert((minVal>=0 || maxVal>=0) && "Index can't be negative.");
+    assert((minVal<=static_cast<int>(patrons.size()) ||
+            maxVal<=static_cast<int>(patrons.size())) &&
+           "Index max out of range");
+
     return static_cast<std::size_t>(Outils::rollTheDice(minVal, maxVal));
 }
 //////////////////////////////////////////////////////////
-/////// MOVE PIECE ACTIVE PIECE INTO PLAYFIELD STATIC PIECES
+/////// MOVE ACTIVE PIECE INTO PLAYFIELD PIECES
 void moveToPlayfieldPieces(std::vector<sf::Sprite>& activePiece, std::vector<std::vector<sf::Sprite>>& playFieldPieces)
 {
     playFieldPieces.push_back(std::move(activePiece));
@@ -138,33 +155,18 @@ int main()
     empty_t.loadFromFile("assets/img/empty_tile.png");
     sf::Sprite empty_s(empty_t);
 
-    // Pattern default : {0, 0, 0, 0, 0, 0, 0, 0, 0} (9);
-    // Pattern default : {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} (16);
-    const std::vector<std::vector<unsigned>> patrons{{0, 1, 0, 1, 1, 1, 0, 0, 0},  // T
-                                                     {1, 0, 0, 1, 1, 1, 0, 0, 0},  // J
-                                                     {0, 0, 1, 1, 1, 1, 0, 0, 0},  // L
-                                                     {0, 1, 1, 1, 1, 0, 0, 0, 0},  // S
-                                                     {1, 1, 0, 0, 1, 1, 0, 0, 0},  // Z
-                                                     {0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0},  // I
-                                                     {1, 1, 1, 1},
-                                                     {0, 1, 0, 1, 1, 1, 0, 1, 0},  // +
-                                                     {1, 1, 1, 0, 1, 0, 1, 0, 0},  // >
-                                                     {0, 1, 1, 0, 1, 0, 1, 1, 0},  // Big S
-                                                     {1, 1, 0, 0, 1, 0, 0, 1, 1},  // Big Z
-                                                     {0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0}}; // BOOMRANG
-
-    // Create piece
-    std::size_t index{randomPiece(0, patrons.size()-1)};
+    /////// Create piece
+    std::size_t index{randomID(0, patrons.size()-1)};
     std::vector<sf::Sprite> piece{createPiece(patrons[index], s, empty_s)};
 
-    // Create Next Piece
-    index = randomPiece(0, patrons.size()-1);
+    /////// Create Next Piece
+    index = randomID(0, patrons.size()-1);
     std::vector<sf::Sprite> nextPiece{createPiece(patrons[index], s, empty_s)};
 
-    // Vector that contains concrete pieces on PlayField
+    /////// Vector that contains concrete pieces on PlayField
     std::vector<std::vector<sf::Sprite>> playFieldPieces;
 
-    // Create PlayField
+    /////// Create PlayField
     sf::RectangleShape playField{sf::Vector2f(200.f, 400.f)};
     playField.setFillColor(sf::Color(230, 230, 230));
     //const float playFieldTop{playField.getGlobalBounds().top};
@@ -236,16 +238,16 @@ int main()
                 window.close();
         }
 
-
         /////// UPDATE
-        // TO DO : collide pieces on playfield
+        // TO DO : collide pieces to pieces
         if(timer >= delayMax) {
+
             if(!collidePlayField(piece, playFieldBottom, dir::DOWN)){
                 movePiece(piece, 0, 1);
             } else {
                 moveToPlayfieldPieces(piece, playFieldPieces);
                 launchNextPiece(piece, nextPiece);
-                index = randomPiece(0, patrons.size()-1);
+                index     = randomID(0, patrons.size()-1);
                 nextPiece = createPiece(patrons[index], s, empty_s);
             }
 
