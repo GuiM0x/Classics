@@ -93,7 +93,7 @@ void rotatePiece(std::vector<sf::Sprite>& piece)
     piece = tmp;
 }
 //////////////////////////////////////////////////////////
-/////// FIND COLLIDE
+/////// COLLIDE PLAYFIELD'S BORDERS
 bool collidePlayField(const std::vector<sf::Sprite>& piece, float playFieldBorder, unsigned dir = dir::DOWN)
 {
     bool isCollide{false};
@@ -113,6 +113,30 @@ bool collidePlayField(const std::vector<sf::Sprite>& piece, float playFieldBorde
                 break;
         }
     }
+
+    return isCollide;
+}
+//////////////////////////////////////////////////////////
+/////// RETRIEVE PART'S PIECES TOP ON PLAYFIELD
+std::vector<std::size_t> retrieveTopParts(const std::vector<std::vector<sf::Sprite>>& playFieldPieces)
+{
+    std::vector<std::size_t> tmp;
+
+    // TO DO : REWRITE THE SYSTEM THAT PLACES PIECES ON PLAYFIELD INTO A VECTOR.
+    //         INSTEAD USE A VECTOR TO SIMULATE GRID'S PLAYFIELD,
+    //         THEN WHEN BLOC COLLIDING, CHANGE A VALUE INTO THE GRID'S PLAYFIELD.
+    //         LIKE ONE | ZERO
+
+    return tmp;
+}
+//////////////////////////////////////////////////////////
+/////// COLLIDE PIECES TO PIECES
+bool collidePiece(const std::vector<std::size_t> allTops, std::vector<sf::Sprite>& piece)
+{
+    bool isCollide{false};
+
+    // TO DO : Retrieve part's pieces top on playfield
+    // Don't forget to test texture
 
     return isCollide;
 }
