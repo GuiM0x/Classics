@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cmath>
 #include <cassert>
+#include <algorithm>
 
 #include <SFML/Graphics.hpp>
 #include <SFML/System.hpp>
@@ -25,10 +26,11 @@ const std::vector<std::vector<unsigned>> patrons{{0, 1, 0, 1, 1, 1, 0, 0, 0},  /
                                                  {0, 1, 1, 1, 1, 0, 0, 0, 0},  // S
                                                  {1, 1, 0, 0, 1, 1, 0, 0, 0},  // Z
                                                  {0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0},  // I
-                                                 {1, 1, 1, 1},
-                                                 {0, 1, 0, 1, 1, 1, 0, 1, 0},  // +
-                                                 {1, 1, 1, 0, 1, 0, 1, 0, 0},  // >
-                                                 {0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0}}; // BOOMRANG
+                                                 {1, 1, 1, 1}}; // O
+
+const unsigned rowsGrid{20};
+const unsigned colsGrid{10};
+
 //////////////////////////////////////////////////////////
 /////// CREATE PIECE
 std::vector<sf::Sprite> createPiece(const std::vector<unsigned>& patron, const sf::Sprite& s, const sf::Sprite& empty_s)
@@ -59,8 +61,9 @@ std::vector<sf::Sprite> createPiece(const std::vector<unsigned>& patron, const s
 /////// MOVE PIECE
 void movePiece(std::vector<sf::Sprite>& v, int dx = 0, int dy = 0)
 {
+    const float sizePart{20.f};
     for(auto&& x : v){
-        x.move(20*dx, 20*dy);
+        x.move(sizePart*dx, sizePart*dy);
     }
 }
 //////////////////////////////////////////////////////////
@@ -118,36 +121,32 @@ bool collidePlayField(const std::vector<sf::Sprite>& piece, float playFieldBorde
 }
 //////////////////////////////////////////////////////////
 /////// COLLIDE PIECE TO PIECE
-bool collidePiece(const std::vector<std::vector<sf::Sprite>>& playFieldPieces, std::vector<sf::Sprite>& piece, int dir = dir::DOWN)
+bool collidePiece(const std::vector<sf::Sprite>& gridSprites, std::vector<sf::Sprite>& piece, int dir = dir::DOWN)
 {
-    for(const auto& concretePiece : playFieldPieces){
-        for(const auto& concretePart : concretePiece){
-            if(concretePart.getTexture() != nullptr){
-                for(auto&& part : piece){
-                    if(part.getTexture() != nullptr){
-                        // BOTTOM-TOP
-                        if(dir == dir::DOWN){
-                            if(part.getPosition().x == concretePart.getPosition().x){
-                                if(part.getPosition().y+part.getGlobalBounds().height == concretePart.getPosition().y){
-                                    return true;
-                                }
-                            }
+    for(auto&& part : piece){
+        for(auto&& concretePart : gridSprites){
+            if(part.getTexture() != nullptr){
+                // BOTTOM-TOP
+                if(dir == dir::DOWN){
+                    if(part.getPosition().x == concretePart.getPosition().x){
+                        if(part.getPosition().y+part.getGlobalBounds().height == concretePart.getPosition().y){
+                            return true;
                         }
-                        // LEFT
-                        if(dir == dir::LEFT){
-                            if(part.getPosition().y == concretePart.getPosition().y){
-                                if(part.getPosition().x == concretePart.getPosition().x + concretePart.getGlobalBounds().width){
-                                    return true;
-                                }
-                            }
+                    }
+                }
+                // LEFT
+                if(dir == dir::LEFT){
+                    if(part.getPosition().y == concretePart.getPosition().y){
+                        if(part.getPosition().x == concretePart.getPosition().x + concretePart.getGlobalBounds().width){
+                            return true;
                         }
-                        // RIGHT
-                        if(dir == dir::RIGHT){
-                            if(part.getPosition().y == concretePart.getPosition().y){
-                                if(part.getPosition().x + part.getGlobalBounds().width == concretePart.getPosition().x){
-                                    return true;
-                                }
-                            }
+                    }
+                }
+                // RIGHT
+                if(dir == dir::RIGHT){
+                    if(part.getPosition().y == concretePart.getPosition().y){
+                        if(part.getPosition().x + part.getGlobalBounds().width == concretePart.getPosition().x){
+                            return true;
                         }
                     }
                 }
@@ -156,48 +155,6 @@ bool collidePiece(const std::vector<std::vector<sf::Sprite>>& playFieldPieces, s
     }
 
     return false;
-}
-//////////////////////////////////////////////////////////
-/////// UPDATE PLAYFIELD'S GRID
-void updateGrid(std::vector<bool>& grid, const std::vector<std::vector<sf::Sprite>>& playFieldPieces)
-{
-    float x{0.f}, y{0.f};
-    std::size_t i{0}, j{0};
-    std::size_t index{0};
-    const unsigned cols{10};
-
-
-    for(auto&& i : grid){
-        i = false;
-    }
-
-    std::cout << playFieldPieces.size() << '\n'; /// DEBUG
-
-    for(const auto& piece : playFieldPieces){
-        for(const auto& part : piece){
-            if(part.getTexture() != nullptr){
-                const float sizePart{part.getGlobalBounds().width};
-                x = part.getPosition().x;
-                y = part.getPosition().y;
-                i = static_cast<std::size_t>(y/sizePart);
-                j = static_cast<std::size_t>(x/sizePart);
-                index = (i*cols) + j;
-                grid[index] = true;
-            }
-        }
-    }
-}
-/// DEBUG
-void printGrid(const std::vector<bool>& grid)
-{
-    std::cout << "----\n";
-    for(std::size_t i=0; i<20; ++i){
-        for(std::size_t j=0; j<10; ++j){
-            std::cout << ((grid[(i*10)+j] == true) ? "1 " : "0 ");
-        }
-        std::cout << '\n';
-    }
-    std::cout << "----\n";
 }
 //////////////////////////////////////////////////////////
 /////// RANDOM ID
@@ -211,11 +168,40 @@ std::size_t randomID(int minVal, int maxVal)
     return static_cast<std::size_t>(Outils::rollTheDice(minVal, maxVal));
 }
 //////////////////////////////////////////////////////////
-/////// MOVE ACTIVE PIECE INTO PLAYFIELD PIECES
-void moveToPlayfieldPieces(std::vector<sf::Sprite>& activePiece, std::vector<std::vector<sf::Sprite>>& playFieldPieces)
+//// MOVE ACTIVE PIECE INTO GRID
+void movePieceToGrid(std::vector<sf::Sprite>& piece, std::vector<bool>& grid, std::vector<sf::Sprite>& gridSprites)
 {
-    playFieldPieces.push_back(std::move(activePiece));
-    activePiece.clear();
+    float x{0.f}, y{0.f};
+    std::size_t i{0}, j{0};
+    std::size_t index{0};
+
+    for(auto&& part : piece){
+        if(part.getTexture() != nullptr){
+            const float sizePart{part.getGlobalBounds().width};
+            x = part.getPosition().x;
+            y = part.getPosition().y;
+            i = static_cast<std::size_t>(y/sizePart);
+            j = static_cast<std::size_t>(x/sizePart);
+            index = (i*colsGrid) + j;
+            grid[index] = true;
+            gridSprites[index].setTexture(*(part.getTexture()));
+            gridSprites[index].setPosition(x, y);
+        }
+    }
+
+    piece.clear();
+}
+/// DEBUG
+void printGrid(const std::vector<bool>& grid)
+{
+    std::cout << "----\n";
+    for(std::size_t i=0; i<rowsGrid; ++i){
+        for(std::size_t j=0; j<colsGrid; ++j){
+            std::cout << ((grid[(i*colsGrid)+j] == true) ? "1 " : "0 ");
+        }
+        std::cout << '\n';
+    }
+    std::cout << "----\n";
 }
 //////////////////////////////////////////////////////////
 /////// LAUNCH NEXT PIECE
@@ -223,6 +209,33 @@ void launchNextPiece(std::vector<sf::Sprite>& activePiece, std::vector<sf::Sprit
 {
     activePiece = std::move(nextPiece);
     nextPiece.clear();
+    for(const auto& part : activePiece){
+        if(part.getTexture() != nullptr)
+            nextPiece = createPiece(patrons[randomID(0, patrons.size()-1)], sf::Sprite(*(part.getTexture())), sf::Sprite());
+    }
+}
+//////////////////////////////////////////////////////////
+/////// CHECK LINES
+std::vector<std::size_t> checkLines(const std::vector<bool>& grid)
+{
+    std::vector<std::size_t> tmp;
+
+    for(std::size_t i=0; i<(rowsGrid*colsGrid); i+=colsGrid){
+        auto it_begin = grid.begin() + i;
+        auto it_end   = it_begin + colsGrid;
+        auto it_find  = std::find(it_begin, it_end, false);
+        if(it_find == it_end){
+            tmp.push_back(i);
+        }
+    }
+
+    return tmp;
+}
+//////////////////////////////////////////////////////////
+/////// ERASE LINES
+void eraseLines(std::vector<std::size_t> linesToErase)
+{
+    // TO DO
 }
 //////////////////////////////////////////////////////////
 int main()
@@ -239,15 +252,10 @@ int main()
     sf::Sprite empty_s(empty_t);
 
     /////// Create piece
-    std::size_t index{randomID(0, patrons.size()-1)};
-    std::vector<sf::Sprite> piece{createPiece(patrons[index], s, empty_s)};
+    std::vector<sf::Sprite> piece{createPiece(patrons[randomID(0, patrons.size()-1)], s, empty_s)};
 
     /////// Create Next Piece
-    index = randomID(0, patrons.size()-1);
-    std::vector<sf::Sprite> nextPiece{createPiece(patrons[index], s, empty_s)};
-
-    /////// Vector that contains concrete pieces on PlayField
-    std::vector<std::vector<sf::Sprite>> playFieldPieces;
+    std::vector<sf::Sprite> nextPiece{createPiece(patrons[randomID(0, patrons.size()-1)], s, empty_s)};
 
     /////// Create PlayField
     sf::RectangleShape playField{sf::Vector2f(200.f, 400.f)};
@@ -257,6 +265,7 @@ int main()
     const float playFieldLeft{playField.getGlobalBounds().left};
     const float playFieldRight{playField.getGlobalBounds().left + playField.getGlobalBounds().width};
     std::vector<bool> gridPlayField(200, false);
+    std::vector<sf::Sprite> gridSprites(200, sf::Sprite());
 
     /////// CLOCK/DT
     sf::Clock clock;
@@ -285,12 +294,12 @@ int main()
                 }
                 // PRESSED LEFT
                 if (event.key.code == sf::Keyboard::Q) {
-                    if(!collidePlayField(piece, playFieldLeft, dir::LEFT) && !collidePiece(playFieldPieces, piece, dir::LEFT))
+                    if(!collidePlayField(piece, playFieldLeft, dir::LEFT) && !collidePiece(gridSprites, piece, dir::LEFT))
                         movePiece(piece, -1, 0);
                 }
                 // PRESSED RIGHT
                 if (event.key.code == sf::Keyboard::D) {
-                    if(!collidePlayField(piece, playFieldRight, dir::RIGHT) && !collidePiece(playFieldPieces, piece, dir::RIGHT))
+                    if(!collidePlayField(piece, playFieldRight, dir::RIGHT) && !collidePiece(gridSprites, piece, dir::RIGHT))
                         movePiece(piece, 1, 0);
                 }
 				// PRESSED ROTATE
@@ -330,14 +339,18 @@ int main()
                 movePiece(piece, 0, 1);
             } else {
                 std::cout << "Collide !" << '\n'; /// DEBUG
-                moveToPlayfieldPieces(piece, playFieldPieces);
+                movePieceToGrid(piece, gridPlayField, gridSprites);
                 launchNextPiece(piece, nextPiece);
-                index     = randomID(0, patrons.size()-1);
-                nextPiece = createPiece(patrons[index], s, empty_s);
             }
 
-            updateGrid(gridPlayField, playFieldPieces);
             printGrid(gridPlayField);
+
+            std::vector<std::size_t> fullLines = checkLines(gridPlayField);
+            ///DEBUG fullLines
+            for(const auto& line : fullLines){
+                std::cout << line << ' ';
+            }
+            std::cout << '\n';
 
             timer = 0.f;
         }
@@ -346,12 +359,10 @@ int main()
         // Ici la collision doit être en dehors de l'update basée sur le timer.
         // Cela évite la non détection de collision si une touche reste enfoncée.
         // Car l'update d'une touche est plus rapide, donc la piece passe au travers des autres.
-        if(collidePiece(playFieldPieces, piece, dir::DOWN)){
+        if(collidePiece(gridSprites, piece, dir::DOWN)){
             std::cout << "Collide !" << '\n'; /// DEBUG
-            moveToPlayfieldPieces(piece, playFieldPieces);
+            movePieceToGrid(piece, gridPlayField, gridSprites);
             launchNextPiece(piece, nextPiece);
-            index     = randomID(0, patrons.size()-1);
-            nextPiece = createPiece(patrons[index], s, empty_s);
         }
 
         /////// DRAW
@@ -359,10 +370,8 @@ int main()
         window.draw(playField);
         for(const auto& part : piece)
             window.draw(part);
-        for(const auto& piece : playFieldPieces){
-            for(const auto& part : piece){
-                window.draw(part);
-            }
+        for(const auto& s : gridSprites){
+            window.draw(s);
         }
         window.display();
     }
