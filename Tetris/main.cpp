@@ -117,14 +117,80 @@ bool collidePlayField(const std::vector<sf::Sprite>& piece, float playFieldBorde
     return isCollide;
 }
 //////////////////////////////////////////////////////////
+/////// COLLIDE PIECE TO PIECE (Y)
+bool collidePieceY(const std::vector<std::vector<sf::Sprite>>& playFieldPieces, std::vector<sf::Sprite>& piece)
+{
+    for(const auto& concretePiece : playFieldPieces){
+        for(const auto& concretePart : concretePiece){
+            if(concretePart.getTexture() != nullptr){
+                for(auto&& part : piece){
+                    if(part.getTexture() != nullptr){
+                        if(part.getPosition().x == concretePart.getPosition().x){
+                            if(part.getPosition().y+part.getGlobalBounds().height == concretePart.getPosition().y){
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return false;
+}
+//////////////////////////////////////////////////////////
+/////// COLLIDE PIECE TO PIECE (X LEFT)
+bool collidePieceLeft(const std::vector<std::vector<sf::Sprite>>& playFieldPieces, std::vector<sf::Sprite>& piece)
+{
+    for(const auto& concretePiece : playFieldPieces){
+        for(const auto& concretePart : concretePiece){
+            if(concretePart.getTexture() != nullptr){
+                for(auto&& part : piece){
+                    if(part.getTexture() != nullptr){
+                        if(part.getPosition().y == concretePart.getPosition().y){
+                            if(part.getPosition().x == concretePart.getPosition().x + concretePart.getGlobalBounds().width){
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return false;
+}
+//////////////////////////////////////////////////////////
+/////// COLLIDE PIECE TO PIECE (X RIGHT)
+bool collidePieceRight(const std::vector<std::vector<sf::Sprite>>& playFieldPieces, std::vector<sf::Sprite>& piece)
+{
+    for(const auto& concretePiece : playFieldPieces){
+        for(const auto& concretePart : concretePiece){
+            if(concretePart.getTexture() != nullptr){
+                for(auto&& part : piece){
+                    if(part.getTexture() != nullptr){
+                        if(part.getPosition().y == concretePart.getPosition().y){
+                            if(part.getPosition().x + part.getGlobalBounds().width == concretePart.getPosition().x){
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return false;
+}
+//////////////////////////////////////////////////////////
 /////// UPDATE PLAYFIELD'S GRID
 void updateGrid(std::vector<bool>& grid, const std::vector<std::vector<sf::Sprite>>& playFieldPieces)
 {
     float x{0.f}, y{0.f};
-    std::size_t index{0};
-    //const unsigned rows{20};
-    const unsigned cols{10};
     std::size_t i{0}, j{0};
+    std::size_t index{0};
+    const unsigned cols{10};
+
 
     for(auto&& i : grid){
         i = false;
@@ -173,14 +239,14 @@ std::size_t randomID(int minVal, int maxVal)
 /////// MOVE ACTIVE PIECE INTO PLAYFIELD PIECES
 void moveToPlayfieldPieces(std::vector<sf::Sprite>& activePiece, std::vector<std::vector<sf::Sprite>>& playFieldPieces)
 {
-    playFieldPieces.push_back(activePiece);
+    playFieldPieces.push_back(std::move(activePiece));
     activePiece.clear();
 }
 //////////////////////////////////////////////////////////
 /////// LAUNCH NEXT PIECE
 void launchNextPiece(std::vector<sf::Sprite>& activePiece, std::vector<sf::Sprite>& nextPiece)
 {
-    activePiece = nextPiece;
+    activePiece = std::move(nextPiece);
     nextPiece.clear();
 }
 //////////////////////////////////////////////////////////
@@ -244,12 +310,12 @@ int main()
                 }
                 // PRESSED LEFT
                 if (event.key.code == sf::Keyboard::Q) {
-                    if(!collidePlayField(piece, playFieldLeft, dir::LEFT))
+                    if(!collidePlayField(piece, playFieldLeft, dir::LEFT) && !collidePieceLeft(playFieldPieces, piece))
                         movePiece(piece, -1, 0);
                 }
                 // PRESSED RIGHT
                 if (event.key.code == sf::Keyboard::D) {
-                    if(!collidePlayField(piece, playFieldRight, dir::RIGHT))
+                    if(!collidePlayField(piece, playFieldRight, dir::RIGHT) && !collidePieceRight(playFieldPieces, piece))
                         movePiece(piece, 1, 0);
                 }
 				// PRESSED ROTATE
@@ -287,6 +353,7 @@ int main()
             if(!collidePlayField(piece, playFieldBottom, dir::DOWN)){
                 movePiece(piece, 0, 1);
             } else {
+                std::cout << "Collide !" << '\n'; /// DEBUG
                 moveToPlayfieldPieces(piece, playFieldPieces);
                 launchNextPiece(piece, nextPiece);
                 index     = randomID(0, patrons.size()-1);
@@ -297,6 +364,17 @@ int main()
             printGrid(gridPlayField);
 
             timer = 0.f;
+        }
+
+        // Ici la collision doit être en dehors de l'update basée sur le timer.
+        // Cela évite la non détection de collision si une touche reste enfoncée.
+        // Car l'update d'une touche est plus rapide, donc la piece passe au travers des autres.
+        if(collidePieceY(playFieldPieces, piece)){
+            std::cout << "Collide !" << '\n'; /// DEBUG
+            moveToPlayfieldPieces(piece, playFieldPieces);
+            launchNextPiece(piece, nextPiece);
+            index     = randomID(0, patrons.size()-1);
+            nextPiece = createPiece(patrons[index], s, empty_s);
         }
 
         /////// DRAW
