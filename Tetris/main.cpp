@@ -117,35 +117,53 @@ bool collidePlayField(const std::vector<sf::Sprite>& piece, float playFieldBorde
     return isCollide;
 }
 //////////////////////////////////////////////////////////
-/////// RETRIEVE PART'S PIECES TOP ON PLAYFIELD
-std::vector<std::size_t> retrieveTopParts(const std::vector<std::vector<sf::Sprite>>& playFieldPieces)
+/////// UPDATE PLAYFIELD'S GRID
+void updateGrid(std::vector<bool>& grid, const std::vector<std::vector<sf::Sprite>>& playFieldPieces)
 {
-    std::vector<std::size_t> tmp;
+    float x{0.f}, y{0.f};
+    std::size_t index{0};
+    //const unsigned rows{20};
+    const unsigned cols{10};
+    std::size_t i{0}, j{0};
 
-    // TO DO : REWRITE THE SYSTEM THAT PLACES PIECES ON PLAYFIELD INTO A VECTOR.
-    //         INSTEAD USE A VECTOR TO SIMULATE GRID'S PLAYFIELD,
-    //         THEN WHEN BLOC COLLIDING, CHANGE A VALUE INTO THE GRID'S PLAYFIELD.
-    //         LIKE ONE | ZERO
+    for(auto&& i : grid){
+        i = false;
+    }
 
-    return tmp;
+    std::cout << playFieldPieces.size() << '\n'; /// DEBUG
+
+    for(const auto& piece : playFieldPieces){
+        for(const auto& part : piece){
+            if(part.getTexture() != nullptr){
+                const float sizePart{part.getGlobalBounds().width};
+                x = part.getPosition().x;
+                y = part.getPosition().y;
+                i = static_cast<std::size_t>(y/sizePart);
+                j = static_cast<std::size_t>(x/sizePart);
+                index = (i*cols) + j;
+                grid[index] = true;
+            }
+        }
+    }
 }
-//////////////////////////////////////////////////////////
-/////// COLLIDE PIECES TO PIECES
-bool collidePiece(const std::vector<std::size_t> allTops, std::vector<sf::Sprite>& piece)
+/// DEBUG
+void printGrid(const std::vector<bool>& grid)
 {
-    bool isCollide{false};
-
-    // TO DO : Retrieve part's pieces top on playfield
-    // Don't forget to test texture
-
-    return isCollide;
+    std::cout << "----\n";
+    for(std::size_t i=0; i<20; ++i){
+        for(std::size_t j=0; j<10; ++j){
+            std::cout << ((grid[(i*10)+j] == true) ? "1 " : "0 ");
+        }
+        std::cout << '\n';
+    }
+    std::cout << "----\n";
 }
 //////////////////////////////////////////////////////////
 /////// RANDOM ID
 std::size_t randomID(int minVal, int maxVal)
 {
-    assert((minVal>=0 || maxVal>=0) && "Index can't be negative.");
-    assert((minVal<=static_cast<int>(patrons.size()) ||
+    assert((minVal>=0 && maxVal>=0) && "Index can't be negative.");
+    assert((minVal<=static_cast<int>(patrons.size()) &&
             maxVal<=static_cast<int>(patrons.size())) &&
            "Index max out of range");
 
@@ -155,14 +173,14 @@ std::size_t randomID(int minVal, int maxVal)
 /////// MOVE ACTIVE PIECE INTO PLAYFIELD PIECES
 void moveToPlayfieldPieces(std::vector<sf::Sprite>& activePiece, std::vector<std::vector<sf::Sprite>>& playFieldPieces)
 {
-    playFieldPieces.push_back(std::move(activePiece));
+    playFieldPieces.push_back(activePiece);
     activePiece.clear();
 }
 //////////////////////////////////////////////////////////
 /////// LAUNCH NEXT PIECE
 void launchNextPiece(std::vector<sf::Sprite>& activePiece, std::vector<sf::Sprite>& nextPiece)
 {
-    activePiece = std::move(nextPiece);
+    activePiece = nextPiece;
     nextPiece.clear();
 }
 //////////////////////////////////////////////////////////
@@ -197,6 +215,7 @@ int main()
     const float playFieldBottom{playField.getGlobalBounds().top + playField.getGlobalBounds().height};
     const float playFieldLeft{playField.getGlobalBounds().left};
     const float playFieldRight{playField.getGlobalBounds().left + playField.getGlobalBounds().width};
+    std::vector<bool> gridPlayField(200, false);
 
     /////// CLOCK/DT
     sf::Clock clock;
@@ -263,7 +282,6 @@ int main()
         }
 
         /////// UPDATE
-        // TO DO : collide pieces to pieces
         if(timer >= delayMax) {
 
             if(!collidePlayField(piece, playFieldBottom, dir::DOWN)){
@@ -274,6 +292,9 @@ int main()
                 index     = randomID(0, patrons.size()-1);
                 nextPiece = createPiece(patrons[index], s, empty_s);
             }
+
+            updateGrid(gridPlayField, playFieldPieces);
+            printGrid(gridPlayField);
 
             timer = 0.f;
         }
