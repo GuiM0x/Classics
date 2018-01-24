@@ -233,9 +233,16 @@ std::vector<std::size_t> checkLines(const std::vector<bool>& grid)
 }
 //////////////////////////////////////////////////////////
 /////// ERASE LINES
-void eraseLines(std::vector<std::size_t> linesToErase)
+void eraseLines(std::vector<bool>& grid, std::vector<sf::Sprite>& gridSprite)
 {
-    // TO DO
+    std::vector<std::size_t> linesToErase = checkLines(grid);
+
+    for(auto&& line : linesToErase){
+        for(std::size_t i=line; i<line+colsGrid; ++i){
+            grid[i] = false;
+            gridSprite[i] = sf::Sprite();
+        }
+    }
 }
 //////////////////////////////////////////////////////////
 int main()
@@ -343,14 +350,8 @@ int main()
                 launchNextPiece(piece, nextPiece);
             }
 
+            eraseLines(gridPlayField, gridSprites);
             printGrid(gridPlayField);
-
-            std::vector<std::size_t> fullLines = checkLines(gridPlayField);
-            ///DEBUG fullLines
-            for(const auto& line : fullLines){
-                std::cout << line << ' ';
-            }
-            std::cout << '\n';
 
             timer = 0.f;
         }
