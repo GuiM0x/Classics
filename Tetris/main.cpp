@@ -216,14 +216,14 @@ void launchNextPiece(std::vector<sf::Sprite>& activePiece, std::vector<sf::Sprit
 }
 //////////////////////////////////////////////////////////
 /////// CHECK LINES
-std::vector<std::size_t> checkLines(const std::vector<bool>& grid)
+std::vector<std::size_t> checkLines(const std::vector<bool>& grid, bool isEmpty = false)
 {
     std::vector<std::size_t> tmp;
 
     for(std::size_t i=0; i<(rowsGrid*colsGrid); i+=colsGrid){
         auto it_begin = grid.begin() + i;
         auto it_end   = it_begin + colsGrid;
-        auto it_find  = std::find(it_begin, it_end, false);
+        auto it_find  = std::find(it_begin, it_end, isEmpty);
         if(it_find == it_end){
             tmp.push_back(i);
         }
@@ -235,7 +235,7 @@ std::vector<std::size_t> checkLines(const std::vector<bool>& grid)
 /////// ERASE LINES
 void eraseLines(std::vector<bool>& grid, std::vector<sf::Sprite>& gridSprite)
 {
-    std::vector<std::size_t> linesToErase = checkLines(grid);
+    std::vector<std::size_t> linesToErase = checkLines(grid, false);
 
     for(auto&& line : linesToErase){
         for(std::size_t i=line; i<line+colsGrid; ++i){
@@ -350,8 +350,20 @@ int main()
                 launchNextPiece(piece, nextPiece);
             }
 
-            eraseLines(gridPlayField, gridSprites);
-            printGrid(gridPlayField);
+            //printGrid(gridPlayField); /// DEBUG
+            /// DEBUG
+            std::vector<std::size_t> fullLines = checkLines(gridPlayField, false);
+            std::vector<std::size_t> emptyLines = checkLines(gridPlayField, true);
+            std::cout << "\n-----------FULL LINES-----------\n";
+            for(const auto& id : fullLines){
+                std::cout << id << ' ';
+            }
+            std::cout << "\n----------EMPTY LINES-----------\n";
+            for(const auto& id : emptyLines){
+                std::cout << id << ' ';
+            }
+            std::cout << "\n------------TOP LINE------------\n";
+            std::cout << emptyLines.back() << '\n';
 
             timer = 0.f;
         }
@@ -365,6 +377,8 @@ int main()
             movePieceToGrid(piece, gridPlayField, gridSprites);
             launchNextPiece(piece, nextPiece);
         }
+
+        eraseLines(gridPlayField, gridSprites);
 
         /////// DRAW
         window.clear();
