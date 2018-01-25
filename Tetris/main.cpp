@@ -169,7 +169,7 @@ std::size_t randomID(int minVal, int maxVal)
 }
 //////////////////////////////////////////////////////////
 //// MOVE ACTIVE PIECE INTO GRID
-void movePieceToGrid(std::vector<sf::Sprite>& piece, std::vector<bool>& grid, std::vector<sf::Sprite>& gridSprites)
+void movePieceToGrid(std::vector<sf::Sprite>& piece, std::vector<bool>& grid)
 {
     float x{0.f}, y{0.f};
     std::size_t i{0}, j{0};
@@ -184,24 +184,10 @@ void movePieceToGrid(std::vector<sf::Sprite>& piece, std::vector<bool>& grid, st
             j = static_cast<std::size_t>(x/sizePart);
             index = (i*colsGrid) + j;
             grid[index] = true;
-            gridSprites[index].setTexture(*(part.getTexture()));
-            gridSprites[index].setPosition(x, y);
         }
     }
 
     piece.clear();
-}
-/// DEBUG
-void printGrid(const std::vector<bool>& grid)
-{
-    std::cout << "----\n";
-    for(std::size_t i=0; i<rowsGrid; ++i){
-        for(std::size_t j=0; j<colsGrid; ++j){
-            std::cout << ((grid[(i*colsGrid)+j] == true) ? "1 " : "0 ");
-        }
-        std::cout << '\n';
-    }
-    std::cout << "----\n";
 }
 //////////////////////////////////////////////////////////
 /////// LAUNCH NEXT PIECE
@@ -232,21 +218,67 @@ std::vector<std::size_t> checkLines(const std::vector<bool>& grid, bool isEmpty 
     return tmp;
 }
 //////////////////////////////////////////////////////////
-/////// ERASE LINES
-void eraseLines(std::vector<bool>& grid, std::vector<sf::Sprite>& gridSprite)
+/////// MOVE DOWN LINES : called at the end of eraseLines()
+void moveDownLines(std::vector<bool>& grid, std::size_t limitTop, std::size_t lineErased)
 {
+    std::size_t startID{limitTop + colsGrid};
+    std::size_t endID{lineErased};
+    std::vector<bool> blockToMove(grid.begin()+startID, grid.begin()+endID);
+    std::copy(blockToMove.begin(), blockToMove.end(), grid.begin()+(startID+colsGrid));
+
+    for(std::size_t i=startID; i<startID+colsGrid; ++i)
+        grid[i] = false;
+}
+//////////////////////////////////////////////////////////
+/////// ERASE LINES
+void eraseLines(std::vector<bool>& grid)
+{
+    std::vector<std::size_t> limitTop     = checkLines(grid, true);
     std::vector<std::size_t> linesToErase = checkLines(grid, false);
 
     for(auto&& line : linesToErase){
+
         for(std::size_t i=line; i<line+colsGrid; ++i){
             grid[i] = false;
-            gridSprite[i] = sf::Sprite();
+        }
+
+        if(!limitTop.empty())
+            moveDownLines(grid, limitTop.back(), line);
+    }
+}
+//////////////////////////////////////////////////////////
+/////// UPDATE GRID SPRITE
+void updateGridSprite(const std::vector<bool>& grid, std::vector<sf::Sprite>& gridSprite, const sf::Sprite& s)
+{
+    for(std::size_t i=0; i<rowsGrid; ++i){
+        for(std::size_t j=0; j<colsGrid; ++j){
+            std::size_t index{(i*colsGrid)+j};
+            if(grid[index]){
+                gridSprite[index] = s;
+                gridSprite[index].setPosition(j*20, i*20);
+            } else {
+                gridSprite[index] = sf::Sprite();
+            }
         }
     }
+}
+/// DEBUG
+void printGrid(const std::vector<bool>& grid)
+{
+    for(std::size_t i=0; i<rowsGrid; ++i){
+        for(std::size_t j=0; j<colsGrid; ++j){
+            std::cout << ((grid[(i*colsGrid)+j] == true) ? "1 " : "0 ");
+        }
+        std::cout << '\n';
+    }
+    std::cout << "----\n";
+
 }
 //////////////////////////////////////////////////////////
 int main()
 {
+    // TO DO : Game Over (pour ça, trouver l'erreur quand les pieces dépassent le playFieldTop :)
+
     sf::RenderWindow window(sf::VideoMode(1024, 576), "Tetris");
 
     sf::Texture t;
@@ -271,7 +303,7 @@ int main()
     const float playFieldBottom{playField.getGlobalBounds().top + playField.getGlobalBounds().height};
     const float playFieldLeft{playField.getGlobalBounds().left};
     const float playFieldRight{playField.getGlobalBounds().left + playField.getGlobalBounds().width};
-    std::vector<bool> gridPlayField(200, false);
+    std::vector<bool> grid(200, false);
     std::vector<sf::Sprite> gridSprites(200, sf::Sprite());
 
     /////// CLOCK/DT
@@ -345,25 +377,11 @@ int main()
             if(!collidePlayField(piece, playFieldBottom, dir::DOWN)){
                 movePiece(piece, 0, 1);
             } else {
-                std::cout << "Collide !" << '\n'; /// DEBUG
-                movePieceToGrid(piece, gridPlayField, gridSprites);
+                movePieceToGrid(piece, grid);
                 launchNextPiece(piece, nextPiece);
             }
 
-            //printGrid(gridPlayField); /// DEBUG
-            /// DEBUG
-            std::vector<std::size_t> fullLines = checkLines(gridPlayField, false);
-            std::vector<std::size_t> emptyLines = checkLines(gridPlayField, true);
-            std::cout << "\n-----------FULL LINES-----------\n";
-            for(const auto& id : fullLines){
-                std::cout << id << ' ';
-            }
-            std::cout << "\n----------EMPTY LINES-----------\n";
-            for(const auto& id : emptyLines){
-                std::cout << id << ' ';
-            }
-            std::cout << "\n------------TOP LINE------------\n";
-            std::cout << emptyLines.back() << '\n';
+            printGrid(grid); /// DEBUG
 
             timer = 0.f;
         }
@@ -373,12 +391,12 @@ int main()
         // Cela évite la non détection de collision si une touche reste enfoncée.
         // Car l'update d'une touche est plus rapide, donc la piece passe au travers des autres.
         if(collidePiece(gridSprites, piece, dir::DOWN)){
-            std::cout << "Collide !" << '\n'; /// DEBUG
-            movePieceToGrid(piece, gridPlayField, gridSprites);
+            movePieceToGrid(piece, grid);
             launchNextPiece(piece, nextPiece);
         }
 
-        eraseLines(gridPlayField, gridSprites);
+        eraseLines(grid);
+        updateGridSprite(grid, gridSprites, s);
 
         /////// DRAW
         window.clear();
