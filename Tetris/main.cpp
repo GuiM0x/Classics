@@ -30,10 +30,13 @@ const std::vector<std::vector<unsigned>> patrons{{0, 1, 0, 1, 1, 1, 0, 0, 0},  /
 
 const unsigned rowsGrid{20};
 const unsigned colsGrid{10};
+const float    size_tile{20.f};
+
+static unsigned line_ctr{0};
 
 //////////////////////////////////////////////////////////
 /////// CREATE PIECE
-std::vector<sf::Sprite> createPiece(const std::vector<unsigned>& patron, const sf::Sprite& s, const sf::Sprite& empty_s)
+std::vector<sf::Sprite> createPiece(const std::vector<unsigned>& patron, const sf::Sprite& s)
 {
     double sizeMatrice{sqrt(patron.size())};
     assert(round(sizeMatrice) == sizeMatrice && "Piece must be a squared matrice.");
@@ -47,7 +50,6 @@ std::vector<sf::Sprite> createPiece(const std::vector<unsigned>& patron, const s
                 tmp.push_back(s);
             }
             else{
-                //tmp.push_back(empty_s); /// DEBUG
                 tmp.push_back(sf::Sprite());
             }
 
@@ -61,15 +63,17 @@ std::vector<sf::Sprite> createPiece(const std::vector<unsigned>& patron, const s
 /////// MOVE PIECE
 void movePiece(std::vector<sf::Sprite>& v, int dx = 0, int dy = 0)
 {
-    const float sizePart{20.f};
     for(auto&& x : v){
-        x.move(sizePart*dx, sizePart*dy);
+        x.move(size_tile*dx, size_tile*dy);
     }
 }
 //////////////////////////////////////////////////////////
 /////// ROTATE PIECE (only clockwise for the moment)
 void rotatePiece(std::vector<sf::Sprite>& piece)
 {
+    // TO DO : check si un sprite vide dépasse du playFiedl,
+    //         si c'est le cas pas de rotation possible !
+
     double sizeMatrice{sqrt(piece.size())};
     unsigned rows{static_cast<unsigned>(sizeMatrice)};
     unsigned cols{rows};
@@ -196,8 +200,9 @@ void launchNextPiece(std::vector<sf::Sprite>& activePiece, std::vector<sf::Sprit
     activePiece = std::move(nextPiece);
     nextPiece.clear();
     for(const auto& part : activePiece){
-        if(part.getTexture() != nullptr)
-            nextPiece = createPiece(patrons[randomID(0, patrons.size()-1)], sf::Sprite(*(part.getTexture())), sf::Sprite());
+        if(part.getTexture() != nullptr) {
+            nextPiece = createPiece(patrons[randomID(0, patrons.size()-1)], sf::Sprite(*(part.getTexture())));
+        }
     }
 }
 //////////////////////////////////////////////////////////
@@ -242,6 +247,8 @@ void eraseLines(std::vector<bool>& grid)
             grid[i] = false;
         }
 
+        ++line_ctr;
+
         if(!limitTop.empty())
             moveDownLines(grid, limitTop.back(), line);
     }
@@ -255,11 +262,21 @@ void updateGridSprite(const std::vector<bool>& grid, std::vector<sf::Sprite>& gr
             std::size_t index{(i*colsGrid)+j};
             if(grid[index]){
                 gridSprite[index] = s;
-                gridSprite[index].setPosition(j*20, i*20);
+                gridSprite[index].setPosition(j*size_tile, i*size_tile);
             } else {
                 gridSprite[index] = sf::Sprite();
             }
         }
+    }
+}
+//////////////////////////////////////////////////////////
+/////// UPDATE NEXT PIECE TO SHOW
+void updateNextPieceShow(const std::vector<sf::Sprite>& nextPiece, std::vector<sf::Sprite>& nextPiecetoShow)
+{
+    nextPiecetoShow.clear();
+    nextPiecetoShow = nextPiece;
+    for(auto&& part : nextPiecetoShow){
+        part.move(500.f, 250.f); // Provisoire
     }
 }
 /// DEBUG
@@ -281,25 +298,24 @@ int main()
 
     sf::RenderWindow window(sf::VideoMode(1024, 576), "Tetris");
 
+    /////// Texture & Sprite
     sf::Texture t;
     t.loadFromFile("assets/img/tiles.png");
     sf::Sprite s(t);
-
-    /// DEBUG
-    sf::Texture empty_t;
-    empty_t.loadFromFile("assets/img/empty_tile.png");
-    sf::Sprite empty_s(empty_t);
+    assert((s.getTexture() != nullptr && s.getGlobalBounds().width == size_tile) && "Global const size_tile and sprite_size not equal");
 
     /////// Create piece
-    std::vector<sf::Sprite> piece{createPiece(patrons[randomID(0, patrons.size()-1)], s, empty_s)};
+    std::vector<sf::Sprite> piece{createPiece(patrons[randomID(0, patrons.size()-1)], s)};
 
     /////// Create Next Piece
-    std::vector<sf::Sprite> nextPiece{createPiece(patrons[randomID(0, patrons.size()-1)], s, empty_s)};
+    std::vector<sf::Sprite> nextPiece{createPiece(patrons[randomID(0, patrons.size()-1)], s)};
+
+    /////// Copy Next Piece (just for showing)
+    std::vector<sf::Sprite> nextPiecetoShow(nextPiece.begin(), nextPiece.end());
 
     /////// Create PlayField
     sf::RectangleShape playField{sf::Vector2f(200.f, 400.f)};
     playField.setFillColor(sf::Color(230, 230, 230));
-    //const float playFieldTop{playField.getGlobalBounds().top};
     const float playFieldBottom{playField.getGlobalBounds().top + playField.getGlobalBounds().height};
     const float playFieldLeft{playField.getGlobalBounds().left};
     const float playFieldRight{playField.getGlobalBounds().left + playField.getGlobalBounds().width};
@@ -328,7 +344,7 @@ int main()
             {
                 // PRESSED DOWN
                 if (event.key.code == sf::Keyboard::S) {
-                    if(!collidePlayField(piece, playFieldBottom, dir::DOWN))
+                    if(!collidePlayField(piece, playFieldBottom, dir::DOWN) && !collidePiece(gridSprites, piece, dir::DOWN))
                         movePiece(piece, 0, 1);
                 }
                 // PRESSED LEFT
@@ -343,11 +359,24 @@ int main()
                 }
 				// PRESSED ROTATE
 				if (event.key.code == sf::Keyboard::R) {
-                    rotatePiece(piece);
+                    if(!collidePiece(gridSprites, piece, dir::DOWN) &&
+                       !collidePiece(gridSprites, piece, dir::LEFT) &&
+                       !collidePiece(gridSprites, piece, dir::RIGHT))
+                    {
+                        rotatePiece(piece);
+                    }
 				}
                 // PRESSED ESCAPE
                 if(event.key.code == sf::Keyboard::Escape)
                     window.close();
+
+
+                /// DEBUG PRINT
+                if(event.key.code == sf::Keyboard::Space){
+                    printGrid(grid);
+                    std::cout << "Total line(s) : " << line_ctr << '\n';
+                    std::cout << "------------------------------\n";
+                }
             }
 
             /////// KEY RELEASED
@@ -374,6 +403,11 @@ int main()
         // Move Auto
         if(timer >= delayMax) {
 
+            if(collidePiece(gridSprites, piece, dir::DOWN)){
+                movePieceToGrid(piece, grid);
+                launchNextPiece(piece, nextPiece);
+            }
+
             if(!collidePlayField(piece, playFieldBottom, dir::DOWN)){
                 movePiece(piece, 0, 1);
             } else {
@@ -381,31 +415,22 @@ int main()
                 launchNextPiece(piece, nextPiece);
             }
 
-            printGrid(grid); /// DEBUG
-
             timer = 0.f;
-        }
-
-        // Check collide piece to piece
-        // Ici la collision doit être en dehors de l'update basée sur le timer.
-        // Cela évite la non détection de collision si une touche reste enfoncée.
-        // Car l'update d'une touche est plus rapide, donc la piece passe au travers des autres.
-        if(collidePiece(gridSprites, piece, dir::DOWN)){
-            movePieceToGrid(piece, grid);
-            launchNextPiece(piece, nextPiece);
         }
 
         eraseLines(grid);
         updateGridSprite(grid, gridSprites, s);
+        updateNextPieceShow(nextPiece, nextPiecetoShow);
 
         /////// DRAW
         window.clear();
         window.draw(playField);
         for(const auto& part : piece)
             window.draw(part);
-        for(const auto& s : gridSprites){
+        for(const auto& s : gridSprites)
             window.draw(s);
-        }
+        for(const auto& part : nextPiecetoShow)
+            window.draw(part);
         window.display();
     }
 
