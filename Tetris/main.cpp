@@ -30,9 +30,11 @@ const std::vector<std::vector<unsigned>> patrons{{0, 1, 0, 1, 1, 1, 0, 0, 0},  /
 
 const unsigned rowsGrid{20};
 const unsigned colsGrid{10};
-const float    size_tile{20.f};
-
-static unsigned line_ctr{0};
+const float    size_tile{20};
+const float    delayMin{0.2f};
+const float    delayMax{1.f};
+float          delay{delayMax};
+unsigned       line_ctr{0};
 
 //////////////////////////////////////////////////////////
 /////// CREATE PIECE
@@ -68,36 +70,68 @@ void movePiece(std::vector<sf::Sprite>& v, int dx = 0, int dy = 0)
     }
 }
 //////////////////////////////////////////////////////////
+/////// CHECK EMPTY SPRITES OUTSIDE PLAYFIELD (used in rotation)
+bool checkSpriteOut(const std::vector<sf::Sprite>& piece)
+{
+    for(const auto& part : piece){
+        if(part.getPosition().x < 0)
+            return true;
+        if(part.getPosition().x >= colsGrid*size_tile)
+            return true;
+    }
+
+    return false;
+}
+//////////////////////////////////////////////////////////
+/////// CHECK EMPTY SPRITES INTERSECT CONCRETE SPRITES (used in event keyboard)
+bool checkSpriteIntersect(const std::vector<sf::Sprite>& piece, const std::vector<sf::Sprite>& gridSprite)
+{
+    for(const auto& part : piece){
+        for(const auto& sprite : gridSprite){
+            if(sprite.getTexture() != nullptr){
+                if(part.getPosition().x == sprite.getPosition().x &&
+                   part.getPosition().y == sprite.getPosition().y)
+                {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+//////////////////////////////////////////////////////////
 /////// ROTATE PIECE (only clockwise for the moment)
 void rotatePiece(std::vector<sf::Sprite>& piece)
 {
-    // TO DO : check si un sprite vide dépasse du playFiedl,
-    //         si c'est le cas pas de rotation possible !
+    if(!checkSpriteOut(piece)){
 
-    double sizeMatrice{sqrt(piece.size())};
-    unsigned rows{static_cast<unsigned>(sizeMatrice)};
-    unsigned cols{rows};
+        double sizeMatrice{sqrt(piece.size())};
+        unsigned rows{static_cast<unsigned>(sizeMatrice)};
+        unsigned cols{rows};
 
-    std::vector<sf::Sprite> tmp;
+        std::vector<sf::Sprite> tmp;
 
-    // Start Reading bottom-left
-    std::size_t start{piece.size() - cols};
+        // Start Reading bottom-left
+        std::size_t start{piece.size() - cols};
 
-    for(std::size_t i=start; i<piece.size(); ++i){
-        std::size_t index{i};
-        for(unsigned j=0; j<rows; ++j){
-            tmp.push_back(piece[index]); // Linear push to tmp
-            index -= cols;
+        for(std::size_t i=start; i<piece.size(); ++i){
+            std::size_t index{i};
+            for(unsigned j=0; j<rows; ++j){
+                tmp.push_back(piece[index]); // Linear push to tmp
+                index -= cols;
+            }
         }
-    }
 
-    for(unsigned i=0; i<rows; ++i){
-        for(unsigned j=0; j<cols; ++j){
-            tmp[(i*cols)+j].setPosition(piece[(i*cols)+j].getPosition());
+        for(unsigned i=0; i<rows; ++i){
+            for(unsigned j=0; j<cols; ++j){
+                tmp[(i*cols)+j].setPosition(piece[(i*cols)+j].getPosition());
+            }
         }
-    }
 
-    piece = tmp;
+        piece = tmp;
+
+    }
 }
 //////////////////////////////////////////////////////////
 /////// COLLIDE PLAYFIELD'S BORDERS
@@ -248,6 +282,9 @@ void eraseLines(std::vector<bool>& grid)
         }
 
         ++line_ctr;
+        if(line_ctr%8 == 0){
+            delay -= 0.1f;
+        }
 
         if(!limitTop.empty())
             moveDownLines(grid, limitTop.back(), line);
@@ -304,8 +341,17 @@ int main()
     sf::Sprite s(t);
     assert((s.getTexture() != nullptr && s.getGlobalBounds().width == size_tile) && "Global const size_tile and sprite_size not equal");
 
+    sf::Texture tiles;
+    tiles.loadFromFile("assets/img/tiles_set.png");
+    std::vector<sf::Sprite> tileSet;
+    int sizeRect{static_cast<int>(size_tile)};
+    for(int i=0; i<7; ++i){
+        tileSet.push_back(sf::Sprite{tiles, sf::IntRect{i*sizeRect, 0, sizeRect, sizeRect}});
+    }
+
     /////// Create piece
-    std::vector<sf::Sprite> piece{createPiece(patrons[randomID(0, patrons.size()-1)], s)};
+    std::size_t randIndex{randomID(0, 6)};
+    std::vector<sf::Sprite> piece{createPiece(patrons[randIndex], tileSet[randIndex])};
 
     /////// Create Next Piece
     std::vector<sf::Sprite> nextPiece{createPiece(patrons[randomID(0, patrons.size()-1)], s)};
@@ -326,7 +372,6 @@ int main()
     sf::Clock clock;
     sf::Time dt;
     float timer{0.f};   // Used for auto move down
-    float delayMax{1.f}; // Used to control the auto move speed, less is the number, faster is the descent
 
     //////////////////////////////////////////////////////////
     /////// GAME LOOP
@@ -344,24 +389,33 @@ int main()
             {
                 // PRESSED DOWN
                 if (event.key.code == sf::Keyboard::S) {
-                    if(!collidePlayField(piece, playFieldBottom, dir::DOWN) && !collidePiece(gridSprites, piece, dir::DOWN))
+                    if(!collidePlayField(piece, playFieldBottom, dir::DOWN) &&
+                       !collidePiece(gridSprites, piece, dir::DOWN))
+                    {
                         movePiece(piece, 0, 1);
+                    }
                 }
                 // PRESSED LEFT
                 if (event.key.code == sf::Keyboard::Q) {
-                    if(!collidePlayField(piece, playFieldLeft, dir::LEFT) && !collidePiece(gridSprites, piece, dir::LEFT))
+                    if(!collidePlayField(piece, playFieldLeft, dir::LEFT) &&
+                       !collidePiece(gridSprites, piece, dir::LEFT))
+                    {
                         movePiece(piece, -1, 0);
+                    }
                 }
                 // PRESSED RIGHT
                 if (event.key.code == sf::Keyboard::D) {
-                    if(!collidePlayField(piece, playFieldRight, dir::RIGHT) && !collidePiece(gridSprites, piece, dir::RIGHT))
-                        movePiece(piece, 1, 0);
-                }
-				// PRESSED ROTATE
-				if (event.key.code == sf::Keyboard::R) {
-                    if(!collidePiece(gridSprites, piece, dir::DOWN) &&
-                       !collidePiece(gridSprites, piece, dir::LEFT) &&
+                    if(!collidePlayField(piece, playFieldRight, dir::RIGHT) &&
                        !collidePiece(gridSprites, piece, dir::RIGHT))
+                    {
+                        movePiece(piece, 1, 0);
+                    }
+                }
+				// PRESSED ROTATE (right)
+				// TO DO : Fix rotation on ledge piece and playfield
+				//         Faire un test pour voir si un des sprites vide se trouve en dehors ?
+				if (event.key.code == sf::Keyboard::R) {
+                    if(!checkSpriteIntersect(piece, gridSprites))
                     {
                         rotatePiece(piece);
                     }
@@ -400,8 +454,7 @@ int main()
         }
 
         /////// UPDATE
-        // Move Auto
-        if(timer >= delayMax) {
+        if(timer >= delay) {
 
             if(collidePiece(gridSprites, piece, dir::DOWN)){
                 movePieceToGrid(piece, grid);
