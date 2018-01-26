@@ -130,7 +130,6 @@ void rotatePiece(std::vector<sf::Sprite>& piece)
         }
 
         piece = tmp;
-
     }
 }
 //////////////////////////////////////////////////////////
@@ -163,7 +162,7 @@ bool collidePiece(const std::vector<sf::Sprite>& gridSprites, std::vector<sf::Sp
 {
     for(auto&& part : piece){
         for(auto&& concretePart : gridSprites){
-            if(part.getTexture() != nullptr){
+            if(part.getTexture() != nullptr && concretePart.getTexture() != nullptr){
                 // BOTTOM-TOP
                 if(dir == dir::DOWN){
                     if(part.getPosition().x == concretePart.getPosition().x){
@@ -207,7 +206,7 @@ std::size_t randomID(int minVal, int maxVal)
 }
 //////////////////////////////////////////////////////////
 //// MOVE ACTIVE PIECE INTO GRID
-void movePieceToGrid(std::vector<sf::Sprite>& piece, std::vector<bool>& grid)
+void movePieceToGrid(std::vector<sf::Sprite>& piece, std::vector<bool>& grid, std::vector<sf::Sprite>& gridSprite)
 {
     float x{0.f}, y{0.f};
     std::size_t i{0}, j{0};
@@ -222,6 +221,7 @@ void movePieceToGrid(std::vector<sf::Sprite>& piece, std::vector<bool>& grid)
             j = static_cast<std::size_t>(x/sizePart);
             index = (i*colsGrid) + j;
             grid[index] = true;
+            gridSprite[index] = part;
         }
     }
 
@@ -229,15 +229,12 @@ void movePieceToGrid(std::vector<sf::Sprite>& piece, std::vector<bool>& grid)
 }
 //////////////////////////////////////////////////////////
 /////// LAUNCH NEXT PIECE
-void launchNextPiece(std::vector<sf::Sprite>& activePiece, std::vector<sf::Sprite>& nextPiece)
+void launchNextPiece(std::vector<sf::Sprite>& activePiece, std::vector<sf::Sprite>& nextPiece, const std::vector<sf::Sprite> tileSet)
 {
     activePiece = std::move(nextPiece);
     nextPiece.clear();
-    for(const auto& part : activePiece){
-        if(part.getTexture() != nullptr) {
-            nextPiece = createPiece(patrons[randomID(0, patrons.size()-1)], sf::Sprite(*(part.getTexture())));
-        }
-    }
+    std::size_t randIndex{randomID(0, 6)};
+    nextPiece = createPiece(patrons[randIndex], tileSet[randIndex]);
 }
 //////////////////////////////////////////////////////////
 /////// CHECK LINES
@@ -282,8 +279,10 @@ void eraseLines(std::vector<bool>& grid)
         }
 
         ++line_ctr;
-        if(line_ctr%8 == 0){
+        if(line_ctr%5 == 0){
             delay -= 0.1f;
+            if(delay<0.1f)
+                delay = 0.1f;
         }
 
         if(!limitTop.empty())
@@ -298,7 +297,6 @@ void updateGridSprite(const std::vector<bool>& grid, std::vector<sf::Sprite>& gr
         for(std::size_t j=0; j<colsGrid; ++j){
             std::size_t index{(i*colsGrid)+j};
             if(grid[index]){
-                gridSprite[index] = s;
                 gridSprite[index].setPosition(j*size_tile, i*size_tile);
             } else {
                 gridSprite[index] = sf::Sprite();
@@ -354,7 +352,8 @@ int main()
     std::vector<sf::Sprite> piece{createPiece(patrons[randIndex], tileSet[randIndex])};
 
     /////// Create Next Piece
-    std::vector<sf::Sprite> nextPiece{createPiece(patrons[randomID(0, patrons.size()-1)], s)};
+    randIndex = randomID(0, 6);
+    std::vector<sf::Sprite> nextPiece{createPiece(patrons[randIndex], tileSet[randIndex])};
 
     /////// Copy Next Piece (just for showing)
     std::vector<sf::Sprite> nextPiecetoShow(nextPiece.begin(), nextPiece.end());
@@ -457,15 +456,15 @@ int main()
         if(timer >= delay) {
 
             if(collidePiece(gridSprites, piece, dir::DOWN)){
-                movePieceToGrid(piece, grid);
-                launchNextPiece(piece, nextPiece);
+                movePieceToGrid(piece, grid, gridSprites);
+                launchNextPiece(piece, nextPiece, tileSet);
             }
 
             if(!collidePlayField(piece, playFieldBottom, dir::DOWN)){
                 movePiece(piece, 0, 1);
             } else {
-                movePieceToGrid(piece, grid);
-                launchNextPiece(piece, nextPiece);
+                movePieceToGrid(piece, grid, gridSprites);
+                launchNextPiece(piece, nextPiece, tileSet);
             }
 
             timer = 0.f;
