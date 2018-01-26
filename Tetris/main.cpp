@@ -31,7 +31,7 @@ const std::vector<std::vector<unsigned>> patrons{{0, 1, 0, 1, 1, 1, 0, 0, 0},  /
 const unsigned rowsGrid{20};
 const unsigned colsGrid{10};
 const float    size_tile{20};
-const float    delayMin{0.2f};
+const float    delayMin{0.5f};
 const float    delayMax{1.f};
 float          delay{delayMax};
 unsigned       line_ctr{0};
@@ -213,16 +213,22 @@ void movePieceToGrid(std::vector<sf::Sprite>& piece, std::vector<bool>& grid, st
     std::size_t index{0};
 
     for(auto&& part : piece){
+
+        const float sizePart{part.getGlobalBounds().width};
+        x = part.getPosition().x;
+        y = part.getPosition().y;
+        i = static_cast<std::size_t>(y/sizePart);
+        j = static_cast<std::size_t>(x/sizePart);
+        index = (i*colsGrid) + j;
+
         if(part.getTexture() != nullptr){
-            const float sizePart{part.getGlobalBounds().width};
-            x = part.getPosition().x;
-            y = part.getPosition().y;
-            i = static_cast<std::size_t>(y/sizePart);
-            j = static_cast<std::size_t>(x/sizePart);
-            index = (i*colsGrid) + j;
             grid[index] = true;
-            gridSprite[index] = part;
         }
+        else{
+            grid[index] = false;
+        }
+
+        gridSprite[index] = part;
     }
 
     piece.clear();
@@ -238,14 +244,14 @@ void launchNextPiece(std::vector<sf::Sprite>& activePiece, std::vector<sf::Sprit
 }
 //////////////////////////////////////////////////////////
 /////// CHECK LINES
-std::vector<std::size_t> checkLines(const std::vector<bool>& grid, bool isEmpty = false)
+std::vector<std::size_t> checkFullLines(const std::vector<bool>& grid)
 {
     std::vector<std::size_t> tmp;
 
     for(std::size_t i=0; i<(rowsGrid*colsGrid); i+=colsGrid){
         auto it_begin = grid.begin() + i;
         auto it_end   = it_begin + colsGrid;
-        auto it_find  = std::find(it_begin, it_end, isEmpty);
+        auto it_find  = std::find(it_begin, it_end, false);
         if(it_find == it_end){
             tmp.push_back(i);
         }
@@ -255,22 +261,42 @@ std::vector<std::size_t> checkLines(const std::vector<bool>& grid, bool isEmpty 
 }
 //////////////////////////////////////////////////////////
 /////// MOVE DOWN LINES : called at the end of eraseLines()
-void moveDownLines(std::vector<bool>& grid, std::size_t limitTop, std::size_t lineErased)
+void moveDownLines(std::vector<bool>& grid, std::vector<sf::Sprite>& gridSprite, std::size_t lineErased)
 {
-    std::size_t startID{limitTop + colsGrid};
-    std::size_t endID{lineErased};
-    std::vector<bool> blockToMove(grid.begin()+startID, grid.begin()+endID);
-    std::copy(blockToMove.begin(), blockToMove.end(), grid.begin()+(startID+colsGrid));
+    std::size_t startCopy{0};
+    std::size_t endCopy{lineErased};
 
-    for(std::size_t i=startID; i<startID+colsGrid; ++i)
+    for(std::size_t i=0; i<(rowsGrid*colsGrid); i+=colsGrid){
+        auto it_begin = grid.begin() + i;
+        auto it_end   = it_begin + colsGrid;
+        auto it_find  = std::find(it_begin, it_end, true);
+        if(it_find != it_end){
+            startCopy = i;
+            break;
+        }
+    }
+
+    std::vector<bool> tmp_bool;
+    std::vector<sf::Sprite> tmp_sprites;
+    for(unsigned i=startCopy; i<endCopy; ++i){
+        tmp_bool.push_back(grid[i]);
+        tmp_sprites.push_back(gridSprite[i]);
+    }
+    for(unsigned i=startCopy; i<endCopy; ++i){
         grid[i] = false;
+        gridSprite[i] = sf::Sprite();
+    }
+    for(unsigned i=0; i<tmp_bool.size(); ++i){
+        grid[(startCopy+colsGrid)+i] = tmp_bool[i];
+        gridSprite[(startCopy+colsGrid)+i] = tmp_sprites[i];
+        gridSprite[(startCopy+colsGrid)+i].move(0, size_tile);
+    }
 }
 //////////////////////////////////////////////////////////
 /////// ERASE LINES
-void eraseLines(std::vector<bool>& grid)
+void eraseLines(std::vector<bool>& grid, std::vector<sf::Sprite>& gridSprite)
 {
-    std::vector<std::size_t> limitTop     = checkLines(grid, true);
-    std::vector<std::size_t> linesToErase = checkLines(grid, false);
+    std::vector<std::size_t> linesToErase = checkFullLines(grid);
 
     for(auto&& line : linesToErase){
 
@@ -281,27 +307,11 @@ void eraseLines(std::vector<bool>& grid)
         ++line_ctr;
         if(line_ctr%5 == 0){
             delay -= 0.1f;
-            if(delay<0.1f)
-                delay = 0.1f;
+            if(delay<delayMin)
+                delay = delayMin;
         }
 
-        if(!limitTop.empty())
-            moveDownLines(grid, limitTop.back(), line);
-    }
-}
-//////////////////////////////////////////////////////////
-/////// UPDATE GRID SPRITE
-void updateGridSprite(const std::vector<bool>& grid, std::vector<sf::Sprite>& gridSprite, const sf::Sprite& s)
-{
-    for(std::size_t i=0; i<rowsGrid; ++i){
-        for(std::size_t j=0; j<colsGrid; ++j){
-            std::size_t index{(i*colsGrid)+j};
-            if(grid[index]){
-                gridSprite[index].setPosition(j*size_tile, i*size_tile);
-            } else {
-                gridSprite[index] = sf::Sprite();
-            }
-        }
+        moveDownLines(grid, gridSprite, line);
     }
 }
 //////////////////////////////////////////////////////////
@@ -334,16 +344,12 @@ int main()
     sf::RenderWindow window(sf::VideoMode(1024, 576), "Tetris");
 
     /////// Texture & Sprite
-    sf::Texture t;
-    t.loadFromFile("assets/img/tiles.png");
-    sf::Sprite s(t);
-    assert((s.getTexture() != nullptr && s.getGlobalBounds().width == size_tile) && "Global const size_tile and sprite_size not equal");
-
     sf::Texture tiles;
     tiles.loadFromFile("assets/img/tiles_set.png");
     std::vector<sf::Sprite> tileSet;
     int sizeRect{static_cast<int>(size_tile)};
-    for(int i=0; i<7; ++i){
+    int nb_tiles{static_cast<int>(tiles.getSize().x/size_tile)};
+    for(int i=0; i<nb_tiles; ++i){
         tileSet.push_back(sf::Sprite{tiles, sf::IntRect{i*sizeRect, 0, sizeRect, sizeRect}});
     }
 
@@ -428,6 +434,7 @@ int main()
                 if(event.key.code == sf::Keyboard::Space){
                     printGrid(grid);
                     std::cout << "Total line(s) : " << line_ctr << '\n';
+                    std::cout << "Descent Delay : " << delay << '\n';
                     std::cout << "------------------------------\n";
                 }
             }
@@ -470,8 +477,7 @@ int main()
             timer = 0.f;
         }
 
-        eraseLines(grid);
-        updateGridSprite(grid, gridSprites, s);
+        eraseLines(grid, gridSprites);
         updateNextPieceShow(nextPiece, nextPiecetoShow);
 
         /////// DRAW
