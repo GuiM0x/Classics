@@ -27,14 +27,15 @@ const std::vector<std::vector<unsigned>> patrons{{0, 1, 0, 1, 1, 1, 0, 0, 0},  /
                                                  {1, 1, 0, 0, 1, 1, 0, 0, 0},  // Z
                                                  {0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0},  // I
                                                  {1, 1, 1, 1}}; // O
+const sf::Vector2f originField{120.f, 40.f};
+const unsigned     rowsGrid{20};
+const unsigned     colsGrid{10};
+const float        size_tile{20};
+const float        delayMin{0.5f};
+const float        delayMax{1.f};
 
-const unsigned rowsGrid{20};
-const unsigned colsGrid{10};
-const float    size_tile{20};
-const float    delayMin{0.5f};
-const float    delayMax{1.f};
-float          delay{delayMax};
-unsigned       line_ctr{0};
+float              delay{delayMax};
+unsigned           line_ctr{0};
 
 //////////////////////////////////////////////////////////
 /////// CREATE PIECE
@@ -55,7 +56,8 @@ std::vector<sf::Sprite> createPiece(const std::vector<unsigned>& patron, const s
                 tmp.push_back(sf::Sprite());
             }
 
-            tmp.back().setPosition(j*s.getGlobalBounds().width, i*s.getGlobalBounds().height);
+            tmp.back().setPosition((j*s.getGlobalBounds().width)+(originField.x + (3*size_tile)),
+                                   (i*s.getGlobalBounds().height)+originField.y);
         }
     }
 
@@ -74,9 +76,9 @@ void movePiece(std::vector<sf::Sprite>& v, int dx = 0, int dy = 0)
 bool checkSpriteOut(const std::vector<sf::Sprite>& piece)
 {
     for(const auto& part : piece){
-        if(part.getPosition().x < 0)
+        if(part.getPosition().x < originField.x)
             return true;
-        if(part.getPosition().x >= colsGrid*size_tile)
+        if(part.getPosition().x >= (colsGrid*size_tile)+originField.x)
             return true;
     }
 
@@ -149,6 +151,7 @@ bool collidePlayField(const std::vector<sf::Sprite>& piece, float playFieldBorde
             if(dir == dir::RIGHT){
                 isCollide = (s.getGlobalBounds().left + s.getGlobalBounds().width >= playFieldBorder);
             }
+
             if(isCollide)
                 break;
         }
@@ -215,8 +218,8 @@ void movePieceToGrid(std::vector<sf::Sprite>& piece, std::vector<bool>& grid, st
     for(auto&& part : piece){
 
         const float sizePart{part.getGlobalBounds().width};
-        x = part.getPosition().x;
-        y = part.getPosition().y;
+        x = part.getPosition().x - originField.x;
+        y = part.getPosition().y - originField.y;
         i = static_cast<std::size_t>(y/sizePart);
         j = static_cast<std::size_t>(x/sizePart);
         index = (i*colsGrid) + j;
@@ -278,6 +281,7 @@ void moveDownLines(std::vector<bool>& grid, std::vector<sf::Sprite>& gridSprite,
 
     std::vector<bool> tmp_bool;
     std::vector<sf::Sprite> tmp_sprites;
+
     for(unsigned i=startCopy; i<endCopy; ++i){
         tmp_bool.push_back(grid[i]);
         tmp_sprites.push_back(gridSprite[i]);
@@ -320,8 +324,19 @@ void updateNextPieceShow(const std::vector<sf::Sprite>& nextPiece, std::vector<s
 {
     nextPiecetoShow.clear();
     nextPiecetoShow = nextPiece;
-    for(auto&& part : nextPiecetoShow){
-        part.move(500.f, 250.f); // Provisoire
+
+    if(nextPiecetoShow.size() == 4){
+        for(auto&& part : nextPiecetoShow){
+            part.move(360.f-(originField.x+(3*size_tile)), 250.f-originField.y);
+        }
+    } else if(nextPiecetoShow.size() == 9){
+        for(auto&& part : nextPiecetoShow){
+            part.move(350.f-(originField.x+(3*size_tile)), 250.f-originField.y);
+        }
+    } else if(nextPiecetoShow.size() == 16){
+        for(auto&& part : nextPiecetoShow){
+            part.move(340.f-(originField.x+(3*size_tile)), 240.f-originField.y);
+        }
     }
 }
 /// DEBUG
@@ -341,7 +356,7 @@ int main()
 {
     // TO DO : Game Over (pour ça, trouver l'erreur quand les pieces dépassent le playFieldTop :)
 
-    sf::RenderWindow window(sf::VideoMode(1024, 576), "Tetris");
+    sf::RenderWindow window(sf::VideoMode(500, 480), "Tetrox", sf::Style::Close);
 
     /////// Texture & Sprite
     sf::Texture tiles;
@@ -352,6 +367,11 @@ int main()
     for(int i=0; i<nb_tiles; ++i){
         tileSet.push_back(sf::Sprite{tiles, sf::IntRect{i*sizeRect, 0, sizeRect, sizeRect}});
     }
+
+    /////// Background
+    sf::Texture bg;
+    bg.loadFromFile("assets/img/canva.png");
+    sf::Sprite canva(bg);
 
     /////// Create piece
     std::size_t randIndex{randomID(0, 6)};
@@ -366,6 +386,7 @@ int main()
 
     /////// Create PlayField
     sf::RectangleShape playField{sf::Vector2f(200.f, 400.f)};
+    playField.setPosition(originField.x, originField.y);
     playField.setFillColor(sf::Color(230, 230, 230));
     const float playFieldBottom{playField.getGlobalBounds().top + playField.getGlobalBounds().height};
     const float playFieldLeft{playField.getGlobalBounds().left};
@@ -377,6 +398,7 @@ int main()
     sf::Clock clock;
     sf::Time dt;
     float timer{0.f};   // Used for auto move down
+    bool justLaunched{false};
 
     //////////////////////////////////////////////////////////
     /////// GAME LOOP
@@ -462,18 +484,19 @@ int main()
         /////// UPDATE
         if(timer >= delay) {
 
-            if(collidePiece(gridSprites, piece, dir::DOWN)){
+            if(collidePiece(gridSprites, piece, dir::DOWN) ||
+               collidePlayField(piece, playFieldBottom, dir::DOWN))
+            {
                 movePieceToGrid(piece, grid, gridSprites);
                 launchNextPiece(piece, nextPiece, tileSet);
+                justLaunched = true;
             }
 
-            if(!collidePlayField(piece, playFieldBottom, dir::DOWN)){
+            if(!collidePlayField(piece, playFieldBottom, dir::DOWN) && !justLaunched){
                 movePiece(piece, 0, 1);
-            } else {
-                movePieceToGrid(piece, grid, gridSprites);
-                launchNextPiece(piece, nextPiece, tileSet);
             }
 
+            justLaunched = false;
             timer = 0.f;
         }
 
@@ -482,7 +505,8 @@ int main()
 
         /////// DRAW
         window.clear();
-        window.draw(playField);
+        window.draw(canva);
+        //window.draw(playField);
         for(const auto& part : piece)
             window.draw(part);
         for(const auto& s : gridSprites)
