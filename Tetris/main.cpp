@@ -1,4 +1,6 @@
 #include <iostream>
+#include <string>
+#include <vector>
 #include <cmath>
 #include <cassert>
 #include <algorithm>
@@ -31,8 +33,8 @@ const sf::Vector2f originField{120.f, 40.f};
 const unsigned     rowsGrid{20};
 const unsigned     colsGrid{10};
 const float        size_tile{20};
-const float        delayMin{0.5f};
-const float        delayMax{1.f};
+const float        delayMin{0.1f};
+const float        delayMax{0.2f};
 
 float              delay{delayMax};
 unsigned           line_ctr{0};
@@ -303,14 +305,14 @@ void eraseLines(std::vector<bool>& grid, std::vector<sf::Sprite>& gridSprite)
     std::vector<std::size_t> linesToErase = checkFullLines(grid);
 
     for(auto&& line : linesToErase){
-
         for(std::size_t i=line; i<line+colsGrid; ++i){
             grid[i] = false;
         }
 
         ++line_ctr;
+
         if(line_ctr%5 == 0){
-            delay -= 0.1f;
+            delay -= 0.075f;
             if(delay<delayMin)
                 delay = delayMin;
         }
@@ -339,6 +341,47 @@ void updateNextPieceShow(const std::vector<sf::Sprite>& nextPiece, std::vector<s
         }
     }
 }
+//////////////////////////////////////////////////////////
+/////// SET TEXT LINES
+void updateTextLines(sf::Text& text, unsigned nb_lines)
+{
+    std::string tmp{std::to_string(nb_lines)};
+    text.setString(tmp);
+    text.setOrigin(text.getGlobalBounds().width / 2.f, text.getCharacterSize()/2.f);
+}
+//////////////////////////////////////////////////////////
+/////// CHECK GAME OVER
+bool checkGameOver(const std::vector<sf::Sprite>& gridSprite, float playFieldTop)
+{
+    unsigned ctr{0};
+
+    for(std::size_t i=0; i<colsGrid; ++i){
+        if(gridSprite[i].getPosition().y == playFieldTop)
+            ++ctr;
+        if(ctr>1)
+            return true;
+    }
+
+    return false;
+}
+//////////////////////////////////////////////////////////
+/////// RESET GRIDS
+void resetGrids(std::vector<bool>& grid, std::vector<sf::Sprite>& gridSprite)
+{
+    for(auto&& b : grid)
+        b = false;
+
+    for(unsigned i=0; i<rowsGrid; ++i){
+        for(unsigned j=0; j<colsGrid; ++j){
+            gridSprite[(i*colsGrid)+j] = sf::Sprite();
+            gridSprite.back().setPosition((j*size_tile)+originField.x, (i*size_tile)+originField.y);
+        }
+    }
+}
+
+
+
+
 /// DEBUG
 void printGrid(const std::vector<bool>& grid)
 {
@@ -349,9 +392,15 @@ void printGrid(const std::vector<bool>& grid)
         std::cout << '\n';
     }
     std::cout << "----\n";
-
+}
+/// DEBUG
+std::ostream& operator<<(std::ostream& os, const sf::Vector2f& v)
+{
+    os << "(" << v.x << ", " << v.y << ")";
+    return os;
 }
 //////////////////////////////////////////////////////////
+/////// MAIN
 int main()
 {
     // TO DO : Game Over (pour ça, trouver l'erreur quand les pieces dépassent le playFieldTop :)
@@ -388,17 +437,32 @@ int main()
     sf::RectangleShape playField{sf::Vector2f(200.f, 400.f)};
     playField.setPosition(originField.x, originField.y);
     playField.setFillColor(sf::Color(230, 230, 230));
+    const float playFieldTop{playField.getGlobalBounds().top};
     const float playFieldBottom{playField.getGlobalBounds().top + playField.getGlobalBounds().height};
     const float playFieldLeft{playField.getGlobalBounds().left};
     const float playFieldRight{playField.getGlobalBounds().left + playField.getGlobalBounds().width};
     std::vector<bool> grid(200, false);
     std::vector<sf::Sprite> gridSprites(200, sf::Sprite());
 
+    /////// Create Text View Lines
+    sf::Font digiFont;
+    digiFont.loadFromFile("assets/fonts/DS-DIGI.ttf");
+    sf::Text textLines("0", digiFont, 26);
+    // Offset height between char size and global height
+    const float offsetH{textLines.getCharacterSize() - textLines.getGlobalBounds().height};
+    // Set text's top left on window's top left
+    textLines.setPosition(0.f, -offsetH);
+    textLines.setOrigin(textLines.getGlobalBounds().width / 2.f, textLines.getCharacterSize()/2.f);
+    textLines.move(379.f, 384.f);
+
     /////// CLOCK/DT
     sf::Clock clock;
     sf::Time dt;
     float timer{0.f};   // Used for auto move down
+
+    /////// STATES
     bool justLaunched{false};
+    bool gameOver{false};
 
     //////////////////////////////////////////////////////////
     /////// GAME LOOP
@@ -439,8 +503,6 @@ int main()
                     }
                 }
 				// PRESSED ROTATE (right)
-				// TO DO : Fix rotation on ledge piece and playfield
-				//         Faire un test pour voir si un des sprites vide se trouve en dehors ?
 				if (event.key.code == sf::Keyboard::R) {
                     if(!checkSpriteIntersect(piece, gridSprites))
                     {
@@ -452,7 +514,7 @@ int main()
                     window.close();
 
 
-                /// DEBUG PRINT
+                /// DEBUG PRINT (SHORTCUT)
                 if(event.key.code == sf::Keyboard::Space){
                     printGrid(grid);
                     std::cout << "Total line(s) : " << line_ctr << '\n';
@@ -462,18 +524,17 @@ int main()
             }
 
             /////// KEY RELEASED
-            if (event.type == sf::Event::KeyReleased)
-            {
-
+            if (event.type == sf::Event::KeyReleased){
+                // Nothing for the moment...
             }
 
             /////// MOUSE PRESSED
             if(event.type == sf::Event::MouseButtonPressed) {
                 if(event.mouseButton.button == sf::Mouse::Left) {
-
+                    // Nothing for the moment...
                 }
                 if(event.mouseButton.button == sf::Mouse::Right) {
-
+                    // Nothing for the moment...
                 }
             }
 
@@ -482,31 +543,57 @@ int main()
         }
 
         /////// UPDATE
-        if(timer >= delay) {
+        if(!gameOver){
 
-            if(collidePiece(gridSprites, piece, dir::DOWN) ||
-               collidePlayField(piece, playFieldBottom, dir::DOWN))
-            {
-                movePieceToGrid(piece, grid, gridSprites);
-                launchNextPiece(piece, nextPiece, tileSet);
-                justLaunched = true;
+            if(timer >= delay) {
+                if(collidePiece(gridSprites, piece, dir::DOWN) ||
+                   collidePlayField(piece, playFieldBottom, dir::DOWN))
+                {
+                    movePieceToGrid(piece, grid, gridSprites);
+                    launchNextPiece(piece, nextPiece, tileSet);
+                    justLaunched = true;
+                }
+
+                if(!collidePlayField(piece, playFieldBottom, dir::DOWN) && !justLaunched){
+                    movePiece(piece, 0, 1);
+                }
+
+                justLaunched = false;
+                timer = 0.f;
             }
 
-            if(!collidePlayField(piece, playFieldBottom, dir::DOWN) && !justLaunched){
-                movePiece(piece, 0, 1);
+            if(checkGameOver(gridSprites, playFieldTop)){
+                gameOver = true;
             }
 
-            justLaunched = false;
-            timer = 0.f;
+        } else {
+            //std::cout << "GameOver ! Continue ? (y/n)\n";
+            char c{'y'};
+            //std::cin >> c;
+
+            if(c == 'y'){
+                // Reset all
+                resetGrids(grid, gridSprites);
+                line_ctr        = 0;
+                randIndex       = randomID(0, 6);
+                piece           = createPiece(patrons[randIndex], tileSet[randIndex]);
+                randIndex       = randomID(0, 6);
+                nextPiece       = createPiece(patrons[randIndex], tileSet[randIndex]);
+                nextPiecetoShow = nextPiece;
+                gameOver        = false;
+            } else {
+                window.close();
+            }
         }
 
         eraseLines(grid, gridSprites);
+        updateTextLines(textLines, line_ctr);
         updateNextPieceShow(nextPiece, nextPiecetoShow);
 
         /////// DRAW
         window.clear();
         window.draw(canva);
-        //window.draw(playField);
+        window.draw(textLines);
         for(const auto& part : piece)
             window.draw(part);
         for(const auto& s : gridSprites)
