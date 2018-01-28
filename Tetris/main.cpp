@@ -34,7 +34,9 @@ const unsigned     rowsGrid{20};
 const unsigned     colsGrid{10};
 const float        size_tile{20};
 const float        delayMin{0.1f};
-const float        delayMax{0.2f};
+const float        delayMax{1.f};
+const unsigned     SCREEN_X{500};
+const unsigned     SCREEN_Y{480};
 
 float              delay{delayMax};
 unsigned           line_ctr{0};
@@ -312,7 +314,12 @@ void eraseLines(std::vector<bool>& grid, std::vector<sf::Sprite>& gridSprite)
         ++line_ctr;
 
         if(line_ctr%5 == 0){
-            delay -= 0.075f;
+
+            if(delay>0.5f)
+                delay -= 0.075f;
+            else
+                delay -=0.05;
+
             if(delay<delayMin)
                 delay = delayMin;
         }
@@ -378,10 +385,6 @@ void resetGrids(std::vector<bool>& grid, std::vector<sf::Sprite>& gridSprite)
         }
     }
 }
-
-
-
-
 /// DEBUG
 void printGrid(const std::vector<bool>& grid)
 {
@@ -393,19 +396,11 @@ void printGrid(const std::vector<bool>& grid)
     }
     std::cout << "----\n";
 }
-/// DEBUG
-std::ostream& operator<<(std::ostream& os, const sf::Vector2f& v)
-{
-    os << "(" << v.x << ", " << v.y << ")";
-    return os;
-}
 //////////////////////////////////////////////////////////
 /////// MAIN
 int main()
 {
-    // TO DO : Game Over (pour ça, trouver l'erreur quand les pieces dépassent le playFieldTop :)
-
-    sf::RenderWindow window(sf::VideoMode(500, 480), "Tetrox", sf::Style::Close);
+    sf::RenderWindow window(sf::VideoMode(SCREEN_X, SCREEN_Y), "Tetrox", sf::Style::Close);
 
     /////// Texture & Sprite
     sf::Texture tiles;
@@ -454,6 +449,13 @@ int main()
     textLines.setPosition(0.f, -offsetH);
     textLines.setOrigin(textLines.getGlobalBounds().width / 2.f, textLines.getCharacterSize()/2.f);
     textLines.move(379.f, 384.f);
+
+    /////// Game Over Screen Components
+    sf::Font metalStampFont;
+    metalStampFont.loadFromFile("assets/fonts/metal_stamp.ttf");
+    sf::Text textGO("  Game Over  \nPress ENTER !", metalStampFont, 30);
+    textGO.setOrigin(textGO.getGlobalBounds().width/2.f, textGO.getCharacterSize()/2.f);
+    textGO.setPosition(SCREEN_X/2.f, SCREEN_Y/2.f);
 
     /////// CLOCK/DT
     sf::Clock clock;
@@ -509,10 +511,17 @@ int main()
                         rotatePiece(piece);
                     }
 				}
+
+				// GAME OVER SCREEN KEYS
+				if(gameOver){
+                    if(event.key.code == sf::Keyboard::Return){
+                        gameOver = false;
+                    }
+				}
+
                 // PRESSED ESCAPE
                 if(event.key.code == sf::Keyboard::Escape)
                     window.close();
-
 
                 /// DEBUG PRINT (SHORTCUT)
                 if(event.key.code == sf::Keyboard::Space){
@@ -554,7 +563,8 @@ int main()
                     justLaunched = true;
                 }
 
-                if(!collidePlayField(piece, playFieldBottom, dir::DOWN) && !justLaunched){
+                if(!collidePlayField(piece, playFieldBottom, dir::DOWN) && !justLaunched)
+                {
                     movePiece(piece, 0, 1);
                 }
 
@@ -567,39 +577,44 @@ int main()
             }
 
         } else {
-            //std::cout << "GameOver ! Continue ? (y/n)\n";
-            char c{'y'};
-            //std::cin >> c;
-
-            if(c == 'y'){
-                // Reset all
-                resetGrids(grid, gridSprites);
-                line_ctr        = 0;
-                randIndex       = randomID(0, 6);
-                piece           = createPiece(patrons[randIndex], tileSet[randIndex]);
-                randIndex       = randomID(0, 6);
-                nextPiece       = createPiece(patrons[randIndex], tileSet[randIndex]);
-                nextPiecetoShow = nextPiece;
-                gameOver        = false;
-            } else {
-                window.close();
-            }
+            // Reset all
+            resetGrids(grid, gridSprites);
+            line_ctr        = 0;
+            delay           = delayMax;
+            randIndex       = randomID(0, 6);
+            piece           = createPiece(patrons[randIndex], tileSet[randIndex]);
+            for(auto&& part : piece) part.move(0.f, -size_tile); // Avoid offset after GO screen
+            randIndex       = randomID(0, 6);
+            nextPiece       = createPiece(patrons[randIndex], tileSet[randIndex]);
+            nextPiecetoShow = nextPiece;
         }
 
-        eraseLines(grid, gridSprites);
-        updateTextLines(textLines, line_ctr);
-        updateNextPieceShow(nextPiece, nextPiecetoShow);
+        // if(!gameOver) ? (à voir selon la présentation de l'écran de Game Over)
+        if(!gameOver){
+            eraseLines(grid, gridSprites);
+            updateTextLines(textLines, line_ctr);
+            updateNextPieceShow(nextPiece, nextPiecetoShow);
+        }
 
         /////// DRAW
         window.clear();
-        window.draw(canva);
-        window.draw(textLines);
-        for(const auto& part : piece)
-            window.draw(part);
-        for(const auto& s : gridSprites)
-            window.draw(s);
-        for(const auto& part : nextPiecetoShow)
-            window.draw(part);
+
+        if(!gameOver){
+            window.draw(canva);
+            window.draw(textLines);
+            for(const auto& part : piece)
+                window.draw(part);
+            for(const auto& s : gridSprites)
+                window.draw(s);
+            for(const auto& part : nextPiecetoShow)
+                window.draw(part);
+        }
+
+        if(gameOver){
+            // DRAW Screen GAME OVER
+            window.draw(textGO);
+        }
+
         window.display();
     }
 
