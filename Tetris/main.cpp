@@ -4,11 +4,15 @@
 #include <cmath>
 #include <cassert>
 #include <algorithm>
+#include <fstream>
+#include <ctime>
 
 #include <SFML/Graphics.hpp>
 #include <SFML/System.hpp>
 
 #include "include/Outils.h"
+
+/// TO DO : Save scores to file.txt
 
 //////////////////////////////////////////////////////////
 /////// ENUM DIRECTION
@@ -43,6 +47,7 @@ unsigned           line_ctr{0};
 
 //////////////////////////////////////////////////////////
 /////// CREATE PIECE
+std::vector<sf::Sprite> createPiece(const std::vector<unsigned>&, const sf::Sprite&);
 std::vector<sf::Sprite> createPiece(const std::vector<unsigned>& patron, const sf::Sprite& s)
 {
     double sizeMatrice{sqrt(patron.size())};
@@ -69,6 +74,7 @@ std::vector<sf::Sprite> createPiece(const std::vector<unsigned>& patron, const s
 }
 //////////////////////////////////////////////////////////
 /////// MOVE PIECE
+void movePiece(std::vector<sf::Sprite>&, int, int);
 void movePiece(std::vector<sf::Sprite>& v, int dx = 0, int dy = 0)
 {
     for(auto&& x : v){
@@ -77,6 +83,7 @@ void movePiece(std::vector<sf::Sprite>& v, int dx = 0, int dy = 0)
 }
 //////////////////////////////////////////////////////////
 /////// CHECK EMPTY SPRITES OUTSIDE PLAYFIELD (used in rotation)
+bool checkSpriteOut(const std::vector<sf::Sprite>&);
 bool checkSpriteOut(const std::vector<sf::Sprite>& piece)
 {
     for(const auto& part : piece){
@@ -90,6 +97,7 @@ bool checkSpriteOut(const std::vector<sf::Sprite>& piece)
 }
 //////////////////////////////////////////////////////////
 /////// CHECK EMPTY SPRITES INTERSECT CONCRETE SPRITES (used in event keyboard)
+bool checkSpriteIntersect(const std::vector<sf::Sprite>&, const std::vector<sf::Sprite>&);
 bool checkSpriteIntersect(const std::vector<sf::Sprite>& piece, const std::vector<sf::Sprite>& gridSprite)
 {
     for(const auto& part : piece){
@@ -108,6 +116,7 @@ bool checkSpriteIntersect(const std::vector<sf::Sprite>& piece, const std::vecto
 }
 //////////////////////////////////////////////////////////
 /////// ROTATE PIECE (only clockwise for the moment)
+void rotatePiece(std::vector<sf::Sprite>&);
 void rotatePiece(std::vector<sf::Sprite>& piece)
 {
     if(!checkSpriteOut(piece)){
@@ -140,6 +149,7 @@ void rotatePiece(std::vector<sf::Sprite>& piece)
 }
 //////////////////////////////////////////////////////////
 /////// COLLIDE PLAYFIELD'S BORDERS
+bool collidePlayField(const std::vector<sf::Sprite>&, float, unsigned);
 bool collidePlayField(const std::vector<sf::Sprite>& piece, float playFieldBorder, unsigned dir = dir::DOWN)
 {
     bool isCollide{false};
@@ -165,6 +175,7 @@ bool collidePlayField(const std::vector<sf::Sprite>& piece, float playFieldBorde
 }
 //////////////////////////////////////////////////////////
 /////// COLLIDE PIECE TO PIECE
+bool collidePiece(const std::vector<sf::Sprite>&, std::vector<sf::Sprite>&, int);
 bool collidePiece(const std::vector<sf::Sprite>& gridSprites, std::vector<sf::Sprite>& piece, int dir = dir::DOWN)
 {
     for(auto&& part : piece){
@@ -202,6 +213,7 @@ bool collidePiece(const std::vector<sf::Sprite>& gridSprites, std::vector<sf::Sp
 }
 //////////////////////////////////////////////////////////
 /////// RANDOM ID
+std::size_t randomID(int, int);
 std::size_t randomID(int minVal, int maxVal)
 {
     assert((minVal>=0 && maxVal>=0) && "Index can't be negative.");
@@ -213,6 +225,7 @@ std::size_t randomID(int minVal, int maxVal)
 }
 //////////////////////////////////////////////////////////
 //// MOVE ACTIVE PIECE INTO GRID
+void movePieceToGrid(std::vector<sf::Sprite>& piece, std::vector<bool>&, std::vector<sf::Sprite>&);
 void movePieceToGrid(std::vector<sf::Sprite>& piece, std::vector<bool>& grid, std::vector<sf::Sprite>& gridSprite)
 {
     float x{0.f}, y{0.f};
@@ -242,6 +255,7 @@ void movePieceToGrid(std::vector<sf::Sprite>& piece, std::vector<bool>& grid, st
 }
 //////////////////////////////////////////////////////////
 /////// LAUNCH NEXT PIECE
+void launchNextPiece(std::vector<sf::Sprite>& activePiece, std::vector<sf::Sprite>&, const std::vector<sf::Sprite>);
 void launchNextPiece(std::vector<sf::Sprite>& activePiece, std::vector<sf::Sprite>& nextPiece, const std::vector<sf::Sprite> tileSet)
 {
     activePiece = std::move(nextPiece);
@@ -251,6 +265,7 @@ void launchNextPiece(std::vector<sf::Sprite>& activePiece, std::vector<sf::Sprit
 }
 //////////////////////////////////////////////////////////
 /////// CHECK LINES
+std::vector<std::size_t> checkFullLines(const std::vector<bool>&);
 std::vector<std::size_t> checkFullLines(const std::vector<bool>& grid)
 {
     std::vector<std::size_t> tmp;
@@ -268,6 +283,7 @@ std::vector<std::size_t> checkFullLines(const std::vector<bool>& grid)
 }
 //////////////////////////////////////////////////////////
 /////// MOVE DOWN LINES : called at the end of eraseLines()
+void moveDownLines(std::vector<bool>& grid, std::vector<sf::Sprite>&, std::size_t);
 void moveDownLines(std::vector<bool>& grid, std::vector<sf::Sprite>& gridSprite, std::size_t lineErased)
 {
     std::size_t startCopy{0};
@@ -302,6 +318,7 @@ void moveDownLines(std::vector<bool>& grid, std::vector<sf::Sprite>& gridSprite,
 }
 //////////////////////////////////////////////////////////
 /////// ERASE LINES
+void eraseLines(std::vector<bool>&, std::vector<sf::Sprite>&);
 void eraseLines(std::vector<bool>& grid, std::vector<sf::Sprite>& gridSprite)
 {
     std::vector<std::size_t> linesToErase = checkFullLines(grid);
@@ -329,6 +346,7 @@ void eraseLines(std::vector<bool>& grid, std::vector<sf::Sprite>& gridSprite)
 }
 //////////////////////////////////////////////////////////
 /////// UPDATE NEXT PIECE TO SHOW
+void updateNextPieceShow(const std::vector<sf::Sprite>&, std::vector<sf::Sprite>&);
 void updateNextPieceShow(const std::vector<sf::Sprite>& nextPiece, std::vector<sf::Sprite>& nextPiecetoShow)
 {
     nextPiecetoShow.clear();
@@ -350,6 +368,7 @@ void updateNextPieceShow(const std::vector<sf::Sprite>& nextPiece, std::vector<s
 }
 //////////////////////////////////////////////////////////
 /////// SET TEXT LINES
+void updateTextLines(sf::Text&, unsigned);
 void updateTextLines(sf::Text& text, unsigned nb_lines)
 {
     std::string tmp{std::to_string(nb_lines)};
@@ -358,6 +377,7 @@ void updateTextLines(sf::Text& text, unsigned nb_lines)
 }
 //////////////////////////////////////////////////////////
 /////// CHECK GAME OVER
+bool checkGameOver(const std::vector<sf::Sprite>&, float);
 bool checkGameOver(const std::vector<sf::Sprite>& gridSprite, float playFieldTop)
 {
     unsigned ctr{0};
@@ -373,6 +393,7 @@ bool checkGameOver(const std::vector<sf::Sprite>& gridSprite, float playFieldTop
 }
 //////////////////////////////////////////////////////////
 /////// RESET GRIDS
+void resetGrids(std::vector<bool>&, std::vector<sf::Sprite>&);
 void resetGrids(std::vector<bool>& grid, std::vector<sf::Sprite>& gridSprite)
 {
     for(auto&& b : grid)
@@ -385,6 +406,17 @@ void resetGrids(std::vector<bool>& grid, std::vector<sf::Sprite>& gridSprite)
         }
     }
 }
+//////////////////////////////////////////////////////////
+/////// SAVE SCORE
+void saveScore(unsigned, const std::string&);
+void saveScore(unsigned score, const std::string& fileName)
+{
+    std::ofstream osf(fileName, std::ios_base::app);
+    std::time_t result = std::time(nullptr);
+    osf << score << ' ' << std::asctime(std::localtime(&result));
+    osf.close();
+}
+/// //////////////////////////////////////////////////////
 /// DEBUG
 void printGrid(const std::vector<bool>& grid)
 {
@@ -573,6 +605,7 @@ int main()
             }
 
             if(checkGameOver(gridSprites, playFieldTop)){
+                saveScore(line_ctr, "datas/scores");
                 gameOver = true;
             }
 
