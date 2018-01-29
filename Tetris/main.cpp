@@ -483,11 +483,9 @@ int main()
     textLines.move(379.f, 384.f);
 
     /////// Game Over Screen Components
-    sf::Font metalStampFont;
-    metalStampFont.loadFromFile("assets/fonts/metal_stamp.ttf");
-    sf::Text textGO("  Game Over  \nPress ENTER !", metalStampFont, 30);
-    textGO.setOrigin(textGO.getGlobalBounds().width/2.f, textGO.getCharacterSize()/2.f);
-    textGO.setPosition(SCREEN_X/2.f, SCREEN_Y/2.f);
+    sf::Texture go_texture;
+    go_texture.loadFromFile("assets/img/GO_screen.png");
+    sf::Sprite go_sprite(go_texture);
 
     /////// CLOCK/DT
     sf::Clock clock;
@@ -645,7 +643,7 @@ int main()
 
         if(gameOver){
             // DRAW Screen GAME OVER
-            window.draw(textGO);
+            window.draw(go_sprite);
         }
 
         window.display();
