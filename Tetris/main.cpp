@@ -12,8 +12,6 @@
 
 #include "include/Outils.h"
 
-/// TO DO : Save scores to file.txt
-
 //////////////////////////////////////////////////////////
 /////// ENUM DIRECTION
 enum dir{
@@ -237,8 +235,8 @@ void movePieceToGrid(std::vector<sf::Sprite>& piece, std::vector<bool>& grid, st
         const float sizePart{part.getGlobalBounds().width};
         x = part.getPosition().x - originField.x;
         y = part.getPosition().y - originField.y;
-        i = static_cast<std::size_t>(y/sizePart);
-        j = static_cast<std::size_t>(x/sizePart);
+        i = static_cast<std::size_t>(y / sizePart);
+        j = static_cast<std::size_t>(x / sizePart);
         index = (i*colsGrid) + j;
 
         if(part.getTexture() != nullptr){
