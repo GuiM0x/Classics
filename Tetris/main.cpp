@@ -432,7 +432,7 @@ int main()
 {
     sf::RenderWindow window(sf::VideoMode(SCREEN_X, SCREEN_Y), "Tetrox", sf::Style::Close);
 
-    /////// Texture & Sprite
+    /////// Tileset
     sf::Texture tiles;
     tiles.loadFromFile("assets/img/tiles_set.png");
     std::vector<sf::Sprite> tileSet;
