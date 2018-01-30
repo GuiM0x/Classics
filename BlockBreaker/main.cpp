@@ -5,16 +5,13 @@
 
 #include "include/Outils.h"
 
-///////////////////////////////
-/////// RESET KEY STATE
-void reset_key_state(std::vector<bool>& v){
-    for(auto&& x : v)
-        x = false;
-}
-
-enum keys{UP, DOWN, LEFT, RIGHT, KEY_MAX};
+///////////////////////////////////////////////////
+/////// ENUM KEYS
+enum keys{LEFT, RIGHT, KEY_MAX};
 std::vector<bool> key(KEY_MAX, false);
-///////////////////////////////
+
+///////////////////////////////////////////////////
+/////// MAIN
 int main()
 {
     sf::RenderWindow window(sf::VideoMode(1024, 576), "Block Breaker");
@@ -36,8 +33,6 @@ int main()
             if(event.type == sf::Event::KeyPressed)
             {
                 //Directions
-				if (event.key.code == sf::Keyboard::Z) { key[UP]    = true; }
-				if (event.key.code == sf::Keyboard::S) { key[DOWN]  = true; }
 				if (event.key.code == sf::Keyboard::Q) { key[LEFT]  = true; }
 				if (event.key.code == sf::Keyboard::D) { key[RIGHT] = true; }
 
@@ -49,8 +44,6 @@ int main()
 			if (event.type == sf::Event::KeyReleased)
 			{
 				//Directions
-				if (event.key.code == sf::Keyboard::Z) { key[UP]    = false; }
-				if (event.key.code == sf::Keyboard::S) { key[DOWN]  = false; }
 				if (event.key.code == sf::Keyboard::Q) { key[LEFT]  = false; }
 				if (event.key.code == sf::Keyboard::D) { key[RIGHT] = false; }
 
