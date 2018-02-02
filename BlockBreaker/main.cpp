@@ -10,11 +10,12 @@
 const unsigned WINDOW_W = 1024;
 const unsigned WINDOW_H = 576;
 const float       PAD_W = 150.f;
-const float       PAD_H = 25.f;
+const float       PAD_H = 20.f;
 const float       PAD_Y = WINDOW_H - (PAD_H + 10.f);
+const float       SPEED = 200.f;
 
 ///////////////////////////////////////////////////
-/////// ENUM KEYS
+/////// ENUMS
 enum keys{LEFT, RIGHT, KEY_MAX};
 std::vector<bool> key(KEY_MAX, false);
 
@@ -25,6 +26,8 @@ class Paddle : public sf::RectangleShape
 public:
     explicit Paddle(const sf::Vector2f& size);
 
+    void move(const sf::Time& dt, int dir);
+
 private:
 
 };
@@ -33,6 +36,14 @@ Paddle::Paddle(const sf::Vector2f& size) :
     sf::RectangleShape{size}
 {
 
+}
+void Paddle::move(const sf::Time& dt, int dir)
+{
+    switch(dir){
+        case keys::LEFT  : sf::RectangleShape::move(-SPEED*dt.asSeconds(), 0.f); break;
+        case keys::RIGHT : sf::RectangleShape::move(SPEED*dt.asSeconds(), 0.f); break;
+        default          : break;
+    }
 }
 ///////////////////////////////////////////////////
 /////// MAIN
@@ -92,7 +103,8 @@ int main()
         }
 
         /////// UPDATE
-
+        if(key[LEFT])  pad.move(dt, keys::LEFT);
+        if(key[RIGHT]) pad.move(dt, keys::RIGHT);
 
         /////// DRAW
         window.clear();
