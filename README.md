@@ -10,7 +10,7 @@
 
 ### Tetris
 
-![Imgur](https://i.imgur.com/I0yDCrM.png)
+![Imgur](https://i.imgur.com/4lUwC0N.png)
 
 ### Block Breaker
 
