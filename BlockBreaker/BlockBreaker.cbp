@@ -13,7 +13,6 @@
 				<Option compiler="gcc" />
 				<Compiler>
 					<Add option="-Wall" />
-					<Add option="-std=c++14" />
 					<Add option="-g" />
 				</Compiler>
 				<Linker>
@@ -50,13 +49,14 @@
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
-			<Add option="-std=c++14" />
+			<Add option="-std=c++1z" />
 			<Add option="-DSFML_STATIC" />
 			<Add directory="E:/CODING/Cplus/SFML-2.4.2-DW2/include" />
 		</Compiler>
 		<Linker>
 			<Add directory="E:/CODING/Cplus/SFML-2.4.2-DW2/lib" />
 		</Linker>
+		<Unit filename="../../Utilities/Matrix.hpp" />
 		<Unit filename="include/Outils.h" />
 		<Unit filename="main.cpp" />
 		<Extensions>
