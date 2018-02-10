@@ -6,7 +6,7 @@
 #include "include/Outils.h"
 #include "../../Utilities/Matrix.hpp"
 
-///////////////////////////////////////////////////
+/// ///////////////////////////////////////////////
 /// CONST
 const std::size_t GRID_ROWS = 8;
 const std::size_t GRID_COLS = 10;
@@ -18,17 +18,17 @@ const float           PAD_W = 150.f;
 const float           PAD_H = 20.f;
 const float           PAD_X = (WINDOW_W / 2.f) - (PAD_W / 2.f);
 const float           PAD_Y = WINDOW_H - (PAD_H + 10.f);
-const float           SPEED = 200.f;
+const float           SPEED = 100.f;
 const float              PI = 3.141592f;
 
 const sf::Vector2f origin_grid{(WINDOW_W - (GRID_COLS*BLOCK_W)) / 2.f, 0.f};
 
-///////////////////////////////////////////////////
+/// ///////////////////////////////////////////////
 /// ENUMS
 enum keys{LEFT, RIGHT, KEY_MAX};
 std::vector<bool> key(KEY_MAX, false);
 
-///////////////////////////////////////////////////
+/// ///////////////////////////////////////////////
 /// CLASS PADDLE
 class Paddle : public sf::RectangleShape
 {
@@ -42,7 +42,7 @@ public:
 private:
 
 };
-///////////
+//////////////////////
 void Paddle::move(const sf::Time& dt, int dir)
 {
     switch(dir){
@@ -52,8 +52,32 @@ void Paddle::move(const sf::Time& dt, int dir)
             break;
     }
 }
+/// ///////////////////////////////////////////////
+/// CLASS BLOCK
+class Block : public sf::RectangleShape
+{
+public:
+    Block();
+    Block(const sf::Vector2f&);
+    ~Block() {}
 
-///////////////////////////////////////////////////
+private:
+
+};
+//////////////////////
+Block::Block() :
+    sf::RectangleShape{}
+{
+
+}
+
+Block::Block(const sf::Vector2f& size) :
+    sf::RectangleShape{size}
+{
+
+}
+
+/// ///////////////////////////////////////////////
 /// CLASS BALL
 class Ball : public sf::CircleShape
 {
@@ -63,6 +87,8 @@ public:
 
     void move(const sf::Time&);
     void bounce(const Paddle&);
+    void bounce(const Block&);
+    sf::FloatRect getGlobalBounds() const;
 
 private:
 
@@ -74,7 +100,7 @@ private:
         return os;
     }
 };
-///////////
+//////////////////////
 Ball::Ball(float radius, std::size_t pointCount) :
     sf::CircleShape{radius, pointCount}
 {
@@ -92,36 +118,73 @@ void Ball::move(const sf::Time& dt)
 
 void Ball::bounce(const Paddle& p)
 {
-    const float distFromMidPad{getPosition().x - (p.getPosition().x + (p.getGlobalBounds().height/2.f))};
+    const float distFromMidPad{getPosition().x - (p.getPosition().x + (p.getGlobalBounds().width/2.f))};
     const float max_bounce_angle{45.f};
     const float degPerPixel{max_bounce_angle/(PAD_W/2.f)};
 
-        // Left part of paddle
+    // Left part of paddle
     if(distFromMidPad < 0){
-        setRotation(270.f - ((distFromMidPad * -1) * degPerPixel));
+        setRotation(270.f - ((distFromMidPad * -1.f) * degPerPixel));
     }
-    else {
-        // Right part of paddle
+    // Right part of paddle
+    else if(distFromMidPad > 0){
         setRotation(270.f + (distFromMidPad * degPerPixel));
     }
+    else{
+        setRotation(270.f);
+    }
 }
-///////////////////////////////////////////////////
-/// FUNCTION(S)
-sf::RectangleShape createBlock(float, float);
-sf::RectangleShape createBlock(float width, float height)
+
+sf::FloatRect Ball::getGlobalBounds() const
 {
-    sf::RectangleShape tmp{sf::Vector2f(width, height)};
+    return sf::FloatRect{{getPosition().x - getRadius(), getPosition().y - getRadius()},
+                         {sf::CircleShape::getGlobalBounds().width, sf::CircleShape::getGlobalBounds().height}};
+}
+
+void Ball::bounce(const Block& block)
+{
+    // Left
+    if(getGlobalBounds().left <= block.getPosition().x &&
+       getGlobalBounds().left + getGlobalBounds().width >= block.getPosition().x)
+    {
+
+    }
+
+    // Right
+    if(getGlobalBounds().left <= block.getPosition().x + block.getGlobalBounds().width &&
+       getGlobalBounds().left + getGlobalBounds().width >= block.getPosition().x + block.getGlobalBounds().width)
+    {
+
+    }
+
+    // Middle
+    if(getGlobalBounds().left >= block.getPosition().x &&
+       getGlobalBounds().left <= block.getPosition().x + block.getGlobalBounds().width)
+    {
+        // Top ?
+
+        // Bottom ?
+    }
+}
+
+/// ///////////////////////////////////////////////
+/// OTHER FUNCTION(S)
+// Create Block
+Block createBlock(float, float);
+Block createBlock(float width, float height)
+{
+    Block tmp{sf::Vector2f(width, height)};
     tmp.setFillColor(sf::Color(Outils::rollTheDice(0,1),
                                Outils::rollTheDice(25,255),
                                Outils::rollTheDice(0,1)));
 
     return tmp;
 }
-
+// Collide With Paddle
 bool collideWithPaddle(const Ball&, const Paddle&);
 bool collideWithPaddle(const Ball& b, const Paddle& p)
 {
-    if((b.getPosition().x - b.getRadius()) >= p.getPosition().x &&
+    if((b.getPosition().x + b.getRadius()) >= p.getPosition().x &&
        (b.getPosition().x - b.getRadius()) <= p.getPosition().x + PAD_W)
     {
         if((b.getPosition().y + b.getRadius()) >= p.getPosition().y &&
@@ -129,12 +192,20 @@ bool collideWithPaddle(const Ball& b, const Paddle& p)
         {
             return true;
         }
+
+        return false;
     }
 
     return false;
 }
-///////////////////////////////////////////////////
-/////// MAIN
+// Collide With Block
+bool collideWithBlock(const Ball&, const Block&);
+bool collideWithBlock(const Ball& ball, const Block& block)
+{
+    return (ball.getGlobalBounds().intersects(block.getGlobalBounds()));
+}
+/// ///////////////////////////////////////////////
+/// MAIN
 int main()
 {
     sf::RenderWindow window(sf::VideoMode(1024, 576), "Block Breaker", sf::Style::Close);
@@ -145,16 +216,27 @@ int main()
 
     /////// Ball
     Ball myBall{12.f};
-    myBall.setPosition(PAD_X, PAD_Y);
+    myBall.setRotation(270.f);
+    myBall.setPosition(WINDOW_W/2.f, PAD_Y - 24.f);
 
     /////// Blocks Grid
-    Matrix<sf::RectangleShape> blocksGrid(GRID_ROWS, GRID_COLS, sf::RectangleShape{});
+    Matrix<Block> gridBlocks(GRID_ROWS, GRID_COLS, Block{});
     for(std::size_t i=0; i<GRID_ROWS; ++i){
         for(std::size_t j=0; j<GRID_COLS; ++j){
-            blocksGrid(i, j) = createBlock(BLOCK_W, BLOCK_H);
-            blocksGrid(i, j).setPosition((j*BLOCK_W)+origin_grid.x, i*BLOCK_H);
+            gridBlocks(i, j) = createBlock(BLOCK_W, BLOCK_H);
+            gridBlocks(i, j).setPosition((j*BLOCK_W)+origin_grid.x, i*BLOCK_H);
         }
     }
+
+    Block oneBlock{{70.f, 25.f}};
+    oneBlock.setPosition(WINDOW_W/2.f, WINDOW_H/2.f);
+
+    /// DEBUG
+    sf::RectangleShape boxBall{{myBall.getGlobalBounds().width, myBall.getGlobalBounds().height}};
+    boxBall.setFillColor(sf::Color::Transparent);
+    boxBall.setOutlineThickness(1);
+    boxBall.setOutlineColor(sf::Color::Red);
+    /// END DEBUG
 
     /////// CLOCK/DT
     sf::Clock clock;
@@ -187,16 +269,17 @@ int main()
                 if (event.key.code == sf::Keyboard::Q) { key[LEFT]  = false; }
                 if (event.key.code == sf::Keyboard::D) { key[RIGHT] = false; }
 
+                /// DEBUG
                 if (event.key.code == sf::Keyboard::Space) { std::cout << myBall << '\n'; }
 			}
 
             /////// MOUSE PRESSED
             if(event.type == sf::Event::MouseButtonPressed) {
                 if(event.mouseButton.button == sf::Mouse::Left) {
-                    myBall.rotate(25.f);
+                    myBall.rotate(36.f);
                 }
                 if(event.mouseButton.button == sf::Mouse::Right) {
-                    myBall.rotate(-25.f);
+                    myBall.rotate(-36.f);
                 }
             }
 
@@ -208,18 +291,28 @@ int main()
         if(key[LEFT])  pad.move(dt, keys::LEFT);
         if(key[RIGHT]) pad.move(dt, keys::RIGHT);
 
-        myBall.move(dt);
-
         if(collideWithPaddle(myBall, pad)){
             myBall.bounce(pad);
         }
+
+        if(collideWithBlock(myBall, oneBlock)){
+            std::cout << "Collide with block !" << '\n';
+        }
+
+        myBall.move(dt);
+
+        /// DEBUG
+        boxBall.setPosition(myBall.getGlobalBounds().left, myBall.getGlobalBounds().top);
+        /// END DEBUF
 
         /////// DRAW
         window.clear();
         window.draw(pad);
         window.draw(myBall);
-        for(const auto& block : blocksGrid)
-            window.draw(block);
+        /*for(const auto& block : gridBlocks)
+            window.draw(block);*/
+        window.draw(oneBlock);
+        window.draw(boxBall);
         window.display();
     }
 
