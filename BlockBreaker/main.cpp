@@ -18,7 +18,7 @@ const float           PAD_W = 150.f;
 const float           PAD_H = 20.f;
 const float           PAD_X = (WINDOW_W / 2.f) - (PAD_W / 2.f);
 const float           PAD_Y = WINDOW_H - (PAD_H + 10.f);
-const float           SPEED = 100.f;
+const float           SPEED = 35.f;
 const float              PI = 3.141592f;
 
 const sf::Vector2f origin_grid{(WINDOW_W - (GRID_COLS*BLOCK_W)) / 2.f, 0.f};
@@ -27,6 +27,16 @@ const sf::Vector2f origin_grid{(WINDOW_W - (GRID_COLS*BLOCK_W)) / 2.f, 0.f};
 /// ENUMS
 enum keys{LEFT, RIGHT, KEY_MAX};
 std::vector<bool> key(KEY_MAX, false);
+
+/// ///////////////////////////////////////////////
+/// PROTO(S)
+class Block;
+class Ball;
+class Paddle;
+Block createBlock(float, float);
+bool collideWithPaddle(const Ball&, const Paddle&);
+bool collideWithBlock(const Ball&, const Block&);
+sf::Vector2f sizeRectFromPoints(const sf::Vector2f&, const sf::Vector2f&);
 
 /// ///////////////////////////////////////////////
 /// CLASS PADDLE
@@ -92,6 +102,9 @@ public:
 
 private:
 
+    float distFromMidW(const Block&) const;
+    float distFromMidH(const Block&) const;
+
     friend std::ostream& operator<<(std::ostream& os, const Ball& b){
         os << "Ball Spec(s) :\n"
            << "rotation -> " << b.getRotation() << '\n'
@@ -114,6 +127,16 @@ void Ball::move(const sf::Time& dt)
 
     sf::CircleShape::move(cos(angle_rad) * SPEED * dt.asSeconds(),
                           sin(angle_rad) * SPEED * dt.asSeconds());
+}
+
+float Ball::distFromMidW(const Block& block) const
+{
+    return (getPosition().x - (block.getPosition().x + (block.getGlobalBounds().width/2.f)));
+}
+
+float Ball::distFromMidH(const Block& block) const
+{
+    return (getPosition().y - (block.getPosition().y + (block.getGlobalBounds().height/2.f)));
 }
 
 void Ball::bounce(const Paddle& p)
@@ -143,34 +166,361 @@ sf::FloatRect Ball::getGlobalBounds() const
 
 void Ball::bounce(const Block& block)
 {
-    // Left
-    if(getGlobalBounds().left <= block.getPosition().x &&
-       getGlobalBounds().left + getGlobalBounds().width >= block.getPosition().x)
-    {
+    const float angle{getRotation()};
+    const float max_bounce_angle{45.f};
 
+    /// TOP
+    if(getGlobalBounds().top <= block.getPosition().y &&
+       getGlobalBounds().top + getGlobalBounds().height >= block.getPosition().y)
+    {
+        // Top-Left
+        if(getGlobalBounds().left <= block.getPosition().x &&
+           getGlobalBounds().left + getGlobalBounds().width >= block.getPosition().x)
+        {
+            if(angle > 0.f && angle < 90.f){
+
+                const sf::Vector2f diffFromCorner{
+                    sizeRectFromPoints(sf::Vector2f(block.getPosition()),
+                                       sf::Vector2f(getGlobalBounds().left + getGlobalBounds().width, getGlobalBounds().top + getGlobalBounds().height))
+                };
+
+                if(diffFromCorner.x < diffFromCorner.y){
+                    // Bounce left
+                    const float distFromMid{distFromMidH(block)};
+                    const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().height/2.f)};
+
+                    if(distFromMid < 0){
+                        setRotation(180.f + ((distFromMid * -1.f) * degPerPixel));
+                    }
+                    else if(distFromMid > 0){
+                        setRotation(180.f - (distFromMid * degPerPixel));
+                    }
+                    else{
+                        setRotation(180.f);
+                    }
+                }
+                else if(diffFromCorner.x > diffFromCorner.y){
+                    // Bounce top
+                    const float distFromMid{distFromMidW(block)};
+                    const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().width/2.f)};
+
+                    if(distFromMid < 0){
+                        setRotation(270.f - ((distFromMid * -1.f) * degPerPixel));
+                    }
+                    else if(distFromMid > 0){
+                        setRotation(270.f + (distFromMid * degPerPixel));
+                    }
+                    else{
+                        setRotation(270.f);
+                    }
+                }
+                else{
+                    setRotation(225.f);
+                }
+            }
+            else if(angle > 90.f && angle < 180.f){
+                // Bounce Top
+                const float distFromMid{distFromMidW(block)};
+                const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().width/2.f)};
+
+                if(distFromMid < 0){
+                    setRotation(270.f - ((distFromMid * -1.f) * degPerPixel));
+                }
+                else if(distFromMid > 0){
+                    setRotation(270.f + (distFromMid * degPerPixel));
+                }
+                else{
+                    setRotation(270.f);
+                }
+            }
+            else if(angle > 270 && angle < 360){
+                // Bounce Left
+                const float distFromMid{distFromMidH(block)};
+                const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().height/2.f)};
+
+                if(distFromMid < 0){
+                    setRotation(180.f + ((distFromMid * -1.f) * degPerPixel));
+                }
+                else if(distFromMid > 0){
+                    setRotation(180.f - (distFromMid * degPerPixel));
+                }
+                else{
+                    setRotation(180.f);
+                }
+            }
+        }
+        // Top Right
+        else if(getGlobalBounds().left <= block.getPosition().x + block.getGlobalBounds().width &&
+                getGlobalBounds().left + getGlobalBounds().width >= block.getPosition().x + block.getGlobalBounds().width)
+        {
+            if(angle > 90.f && angle < 180.f){
+
+                const sf::Vector2f diffFromCorner{
+                    sizeRectFromPoints(sf::Vector2f(getGlobalBounds().left, getGlobalBounds().top + getGlobalBounds().height),
+                                       sf::Vector2f(block.getPosition().x + block.getGlobalBounds().width, block.getPosition().y))
+                };
+
+                if(diffFromCorner.x < diffFromCorner.y){
+                    // Bounce Right
+                    const float distFromMid{distFromMidH(block)};
+                    const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().height/2.f)};
+
+                    if(distFromMid < 0){
+                        setRotation(360.f - ((distFromMid * -1.f) * degPerPixel));
+                    }
+                    else if(distFromMid > 0){
+                        setRotation(0.f + (distFromMid * degPerPixel));
+                    }
+                    else{
+                        setRotation(0.f);
+                    }
+                }
+                else if(diffFromCorner.x > diffFromCorner.y){
+                    // Bounce top
+                    const float distFromMid{distFromMidW(block)};
+                    const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().width/2.f)};
+
+                    if(distFromMid < 0){
+                        setRotation(270.f - ((distFromMid * -1.f) * degPerPixel));
+                    }
+                    else if(distFromMid > 0){
+                        setRotation(270.f + (distFromMid * degPerPixel));
+                    }
+                    else{
+                        setRotation(270.f);
+                    }
+                }
+                else{
+                    setRotation(320.f);
+                }
+            }
+            else if(angle > 0.f && angle < 90.f){
+                //Bounce Top
+                const float distFromMid{distFromMidW(block)};
+                const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().width/2.f)};
+
+                if(distFromMid < 0){
+                    setRotation(270.f - ((distFromMid * -1.f) * degPerPixel));
+                }
+                else if(distFromMid > 0){
+                    setRotation(270.f + (distFromMid * degPerPixel));
+                }
+                else{
+                    setRotation(270.f);
+                }
+            }
+            else if(angle > 180.f && angle < 270.f){
+                // Bounce Right
+                const float distFromMid{distFromMidH(block)};
+                const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().height/2.f)};
+
+                if(distFromMid < 0){
+                    setRotation(360.f - ((distFromMid * -1.f) * degPerPixel));
+                }
+                else if(distFromMid > 0){
+                    setRotation(0.f + (distFromMid * degPerPixel));
+                }
+                else{
+                    setRotation(0.f);
+                }
+            }
+        }
+        // Middle
+        else
+        {
+            // Bounce Top
+            const float distFromMid{distFromMidW(block)};
+            const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().width/2.f)};
+
+            if(distFromMid < 0){
+                setRotation(270.f - ((distFromMid * -1.f) * degPerPixel));
+            }
+            else if(distFromMid > 0){
+                setRotation(270.f + (distFromMid * degPerPixel));
+            }
+            else{
+                setRotation(270.f);
+            }
+        }
     }
 
-    // Right
-    if(getGlobalBounds().left <= block.getPosition().x + block.getGlobalBounds().width &&
-       getGlobalBounds().left + getGlobalBounds().width >= block.getPosition().x + block.getGlobalBounds().width)
+    /// BOTTOM
+    if(getGlobalBounds().top <= block.getPosition().y + block.getGlobalBounds().height &&
+       getGlobalBounds().top + getGlobalBounds().height >= block.getPosition().y + block.getGlobalBounds().height)
     {
+        // Bottom Left
+        if(getGlobalBounds().left <= block.getPosition().x &&
+           getGlobalBounds().left + getGlobalBounds().width >= block.getPosition().x)
+        {
+            if(angle > 270.f && angle < 360.f){
 
+                const sf::Vector2f diffFromCorner{
+                    sizeRectFromPoints(sf::Vector2f(block.getPosition().x, block.getPosition().y + block.getGlobalBounds().height),
+                                       sf::Vector2f(getGlobalBounds().left + getGlobalBounds().width, getGlobalBounds().top))
+                };
+
+                if(diffFromCorner.x < diffFromCorner.y){
+                    // Bounce Left
+                    const float distFromMid{distFromMidH(block)};
+                    const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().height/2.f)};
+
+                    if(distFromMid < 0){
+                        setRotation(180.f + ((distFromMid * -1.f) * degPerPixel));
+                    }
+                    else if(distFromMid > 0){
+                        setRotation(180.f - (distFromMid * degPerPixel));
+                    }
+                    else{
+                        setRotation(180.f);
+                    }
+                }
+                else if(diffFromCorner.x > diffFromCorner.y){
+                    // Bounce Bottom
+                    const float distFromMid{distFromMidW(block)};
+                    const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().width/2.f)};
+
+                    if(distFromMid < 0){
+                        setRotation(90.f + ((distFromMid * -1.f) * degPerPixel));
+                    }
+                    else if(distFromMid > 0){
+                        setRotation(90.f - (distFromMid * degPerPixel));
+                    }
+                    else{
+                        setRotation(90.f);
+                    }
+                }
+                else{
+                    setRotation(135.f);
+                }
+            }
+            else if(angle > 0.f && angle < 90.f){
+                // Bounce Left
+                const float distFromMid{distFromMidH(block)};
+                    const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().height/2.f)};
+
+                    if(distFromMid < 0){
+                        setRotation(180.f + ((distFromMid * -1.f) * degPerPixel));
+                    }
+                    else if(distFromMid > 0){
+                        setRotation(180.f - (distFromMid * degPerPixel));
+                    }
+                    else{
+                        setRotation(180.f);
+                    }
+
+            }
+            else if(angle > 180.f && angle < 270.f){
+                // Bounce Bottom
+                const float distFromMid{distFromMidW(block)};
+                const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().width/2.f)};
+
+                if(distFromMid < 0){
+                    setRotation(90.f + ((distFromMid * -1.f) * degPerPixel));
+                }
+                else if(distFromMid > 0){
+                    setRotation(90.f - (distFromMid * degPerPixel));
+                }
+                else{
+                    setRotation(90.f);
+                }
+            }
+        }
+        // Bottom Right
+        else if(getGlobalBounds().left <= block.getPosition().x + block.getGlobalBounds().width &&
+                getGlobalBounds().left + getGlobalBounds().width >= block.getPosition().x + block.getGlobalBounds().width)
+        {
+            if(angle > 180.f && angle < 270.f){
+
+                const sf::Vector2f diffFromCorner{
+                    sizeRectFromPoints(sf::Vector2f(getGlobalBounds().left, getGlobalBounds().top),
+                                       sf::Vector2f(block.getPosition() + block.getSize()))
+                };
+
+                if(diffFromCorner.x < diffFromCorner.y){
+                    // Bounce Right
+                    const float distFromMid{distFromMidH(block)};
+                    const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().height/2.f)};
+
+                    if(distFromMid < 0){
+                        setRotation(360.f - ((distFromMid * -1.f) * degPerPixel));
+                    }
+                    else if(distFromMid > 0){
+                        setRotation(0.f + (distFromMid * degPerPixel));
+                    }
+                    else{
+                        setRotation(0.f);
+                    }
+                }
+                else if(diffFromCorner.x > diffFromCorner.y){
+                    // Bounce Bottom
+                    const float distFromMid{distFromMidW(block)};
+                    const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().width/2.f)};
+
+                    if(distFromMid < 0){
+                        setRotation(90.f + ((distFromMid * -1.f) * degPerPixel));
+                    }
+                    else if(distFromMid > 0){
+                        setRotation(90.f - (distFromMid * degPerPixel));
+                    }
+                    else{
+                        setRotation(90.f);
+                    }
+                }
+                else{
+                    setRotation(45.f);
+                }
+            }
+            else if(angle > 270.f && angle < 360.f){
+                // Bounce Bottom
+            }
+            else if(angle > 90.f && angle < 180.f){
+                // Bounce Right
+                const float distFromMid{distFromMidH(block)};
+                const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().height/2.f)};
+
+                if(distFromMid < 0){
+                    setRotation(360.f - ((distFromMid * -1.f) * degPerPixel));
+                }
+                else if(distFromMid > 0){
+                    setRotation(0.f + (distFromMid * degPerPixel));
+                }
+                else{
+                    setRotation(0.f);
+                }
+            }
+        }
+        // Middle
+        else
+        {
+            // Bounce Bottom
+            const float distFromMid{distFromMidW(block)};
+            const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().width/2.f)};
+
+            if(distFromMid < 0){
+                setRotation(90.f + ((distFromMid * -1.f) * degPerPixel));
+            }
+            else if(distFromMid > 0){
+                setRotation(90.f - (distFromMid * degPerPixel));
+            }
+            else{
+                setRotation(90.f);
+            }
+        }
     }
 
-    // Middle
-    if(getGlobalBounds().left >= block.getPosition().x &&
-       getGlobalBounds().left <= block.getPosition().x + block.getGlobalBounds().width)
+    /// MIDDLE
+    /*if(getGlobalBounds().top >= block.getPosition().y &&
+       getGlobalBounds().top + getGlobalBounds().height <= block.getPosition().y + block.getGlobalBounds().height)
     {
-        // Top ?
+        // Left ?
 
-        // Bottom ?
-    }
+        // Right ?
+    }*/
 }
 
 /// ///////////////////////////////////////////////
 /// OTHER FUNCTION(S)
 // Create Block
-Block createBlock(float, float);
 Block createBlock(float width, float height)
 {
     Block tmp{sf::Vector2f(width, height)};
@@ -181,7 +531,6 @@ Block createBlock(float width, float height)
     return tmp;
 }
 // Collide With Paddle
-bool collideWithPaddle(const Ball&, const Paddle&);
 bool collideWithPaddle(const Ball& b, const Paddle& p)
 {
     if((b.getPosition().x + b.getRadius()) >= p.getPosition().x &&
@@ -199,10 +548,32 @@ bool collideWithPaddle(const Ball& b, const Paddle& p)
     return false;
 }
 // Collide With Block
-bool collideWithBlock(const Ball&, const Block&);
 bool collideWithBlock(const Ball& ball, const Block& block)
 {
-    return (ball.getGlobalBounds().intersects(block.getGlobalBounds()));
+    /// DEBUG
+    /*if(ball.getGlobalBounds().intersects(block.getGlobalBounds())){
+    std::cout << "Ball Bounds   : X = " << ball.getGlobalBounds().left << '\n'
+                              << "Y = " << ball.getGlobalBounds().top << '\n'
+                              << "W = " << ball.getGlobalBounds().width << '\n'
+                              << "H = " << ball.getGlobalBounds().height << '\n'
+                              << '\n'
+              << "Block Bounds  : X = " << block.getGlobalBounds().left << '\n'
+                              << "Y = " << block.getGlobalBounds().top << '\n'
+                              << "W = " << block.getGlobalBounds().width << '\n'
+                              << "H = " << block.getGlobalBounds().height << '\n'
+                              << '\n';}*/
+
+    sf::FloatRect ballBounds{ball.getGlobalBounds().left,
+                             ball.getGlobalBounds().top,
+                             ball.getRadius()*2.f, ball.getRadius()*2.f};
+
+    return (ballBounds.intersects(block.getGlobalBounds()));
+}
+
+// Calcul "size" rect between 2 points
+sf::Vector2f sizeRectFromPoints(const sf::Vector2f& A, const sf::Vector2f& B)
+{
+    return sf::Vector2f{static_cast<float>(fabs(B.x - A.x)), static_cast<float>(fabs(B.y - A.y))};
 }
 /// ///////////////////////////////////////////////
 /// MAIN
@@ -276,10 +647,10 @@ int main()
             /////// MOUSE PRESSED
             if(event.type == sf::Event::MouseButtonPressed) {
                 if(event.mouseButton.button == sf::Mouse::Left) {
-                    myBall.rotate(36.f);
+                    myBall.rotate(25.f);
                 }
                 if(event.mouseButton.button == sf::Mouse::Right) {
-                    myBall.rotate(-36.f);
+                    myBall.rotate(-25.f);
                 }
             }
 
@@ -291,15 +662,15 @@ int main()
         if(key[LEFT])  pad.move(dt, keys::LEFT);
         if(key[RIGHT]) pad.move(dt, keys::RIGHT);
 
+        myBall.move(dt);
+
         if(collideWithPaddle(myBall, pad)){
             myBall.bounce(pad);
         }
 
         if(collideWithBlock(myBall, oneBlock)){
-            std::cout << "Collide with block !" << '\n';
+            myBall.bounce(oneBlock);
         }
-
-        myBall.move(dt);
 
         /// DEBUG
         boxBall.setPosition(myBall.getGlobalBounds().left, myBall.getGlobalBounds().top);
