@@ -1,10 +1,9 @@
-#include <iostream>
-#include <cmath>
-
-#include <SFML/Graphics.hpp>
-
 #include "include/Outils.h"
 #include "../../Utilities/Matrix.hpp"
+
+#include <iostream>
+#include <cmath>
+#include <SFML/Graphics.hpp>
 
 /// ///////////////////////////////////////////////
 /// CONST
@@ -12,13 +11,13 @@ const std::size_t GRID_ROWS = 8;
 const std::size_t GRID_COLS = 10;
 const unsigned     WINDOW_W = 1024;
 const unsigned     WINDOW_H = 576;
-const float         BLOCK_W = 70.f;
-const float         BLOCK_H = 25.f;
+const float         BLOCK_W = 60.f;
+const float         BLOCK_H = 24.f;
 const float           PAD_W = 150.f;
 const float           PAD_H = 20.f;
 const float           PAD_X = (WINDOW_W / 2.f) - (PAD_W / 2.f);
 const float           PAD_Y = WINDOW_H - (PAD_H + 10.f);
-const float           SPEED = 35.f;
+const float           SPEED = 50.f;
 const float              PI = 3.141592f;
 
 const sf::Vector2f origin_grid{(WINDOW_W - (GRID_COLS*BLOCK_W)) / 2.f, 0.f};
@@ -104,6 +103,7 @@ private:
 
     float distFromMidW(const Block&) const;
     float distFromMidH(const Block&) const;
+    void startRotation();
 
     friend std::ostream& operator<<(std::ostream& os, const Ball& b){
         os << "Ball Spec(s) :\n"
@@ -118,6 +118,7 @@ Ball::Ball(float radius, std::size_t pointCount) :
     sf::CircleShape{radius, pointCount}
 {
     setOrigin(radius, radius);
+    startRotation();
 }
 
 void Ball::move(const sf::Time& dt)
@@ -137,6 +138,12 @@ float Ball::distFromMidW(const Block& block) const
 float Ball::distFromMidH(const Block& block) const
 {
     return (getPosition().y - (block.getPosition().y + (block.getGlobalBounds().height/2.f)));
+}
+
+void Ball::startRotation()
+{
+    std::array<float, 4> tmp{225.f, 250.f, 290.f, 315.f};
+    setRotation(tmp[static_cast<std::size_t>(Outils::rollTheDice(0, tmp.size()))]);
 }
 
 void Ball::bounce(const Paddle& p)
@@ -167,7 +174,11 @@ sf::FloatRect Ball::getGlobalBounds() const
 void Ball::bounce(const Block& block)
 {
     const float angle{getRotation()};
-    const float max_bounce_angle{45.f};
+    const float bounce_horizontally{360.f - angle};
+    float bounce_vertically{180.f - angle};
+
+    if(bounce_vertically < 0.f)
+        bounce_vertically = 360.f - (bounce_vertically * -1.f);
 
     /// TOP
     if(getGlobalBounds().top <= block.getPosition().y &&
@@ -186,33 +197,11 @@ void Ball::bounce(const Block& block)
 
                 if(diffFromCorner.x < diffFromCorner.y){
                     // Bounce left
-                    const float distFromMid{distFromMidH(block)};
-                    const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().height/2.f)};
-
-                    if(distFromMid < 0){
-                        setRotation(180.f + ((distFromMid * -1.f) * degPerPixel));
-                    }
-                    else if(distFromMid > 0){
-                        setRotation(180.f - (distFromMid * degPerPixel));
-                    }
-                    else{
-                        setRotation(180.f);
-                    }
+                    setRotation(bounce_vertically);
                 }
                 else if(diffFromCorner.x > diffFromCorner.y){
                     // Bounce top
-                    const float distFromMid{distFromMidW(block)};
-                    const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().width/2.f)};
-
-                    if(distFromMid < 0){
-                        setRotation(270.f - ((distFromMid * -1.f) * degPerPixel));
-                    }
-                    else if(distFromMid > 0){
-                        setRotation(270.f + (distFromMid * degPerPixel));
-                    }
-                    else{
-                        setRotation(270.f);
-                    }
+                    setRotation(bounce_horizontally);
                 }
                 else{
                     setRotation(225.f);
@@ -220,33 +209,11 @@ void Ball::bounce(const Block& block)
             }
             else if(angle > 90.f && angle < 180.f){
                 // Bounce Top
-                const float distFromMid{distFromMidW(block)};
-                const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().width/2.f)};
-
-                if(distFromMid < 0){
-                    setRotation(270.f - ((distFromMid * -1.f) * degPerPixel));
-                }
-                else if(distFromMid > 0){
-                    setRotation(270.f + (distFromMid * degPerPixel));
-                }
-                else{
-                    setRotation(270.f);
-                }
+                setRotation(bounce_horizontally);
             }
             else if(angle > 270 && angle < 360){
                 // Bounce Left
-                const float distFromMid{distFromMidH(block)};
-                const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().height/2.f)};
-
-                if(distFromMid < 0){
-                    setRotation(180.f + ((distFromMid * -1.f) * degPerPixel));
-                }
-                else if(distFromMid > 0){
-                    setRotation(180.f - (distFromMid * degPerPixel));
-                }
-                else{
-                    setRotation(180.f);
-                }
+                setRotation(bounce_vertically);
             }
         }
         // Top Right
@@ -262,33 +229,11 @@ void Ball::bounce(const Block& block)
 
                 if(diffFromCorner.x < diffFromCorner.y){
                     // Bounce Right
-                    const float distFromMid{distFromMidH(block)};
-                    const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().height/2.f)};
-
-                    if(distFromMid < 0){
-                        setRotation(360.f - ((distFromMid * -1.f) * degPerPixel));
-                    }
-                    else if(distFromMid > 0){
-                        setRotation(0.f + (distFromMid * degPerPixel));
-                    }
-                    else{
-                        setRotation(0.f);
-                    }
+                    setRotation(bounce_vertically);
                 }
                 else if(diffFromCorner.x > diffFromCorner.y){
                     // Bounce top
-                    const float distFromMid{distFromMidW(block)};
-                    const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().width/2.f)};
-
-                    if(distFromMid < 0){
-                        setRotation(270.f - ((distFromMid * -1.f) * degPerPixel));
-                    }
-                    else if(distFromMid > 0){
-                        setRotation(270.f + (distFromMid * degPerPixel));
-                    }
-                    else{
-                        setRotation(270.f);
-                    }
+                    setRotation(bounce_horizontally);
                 }
                 else{
                     setRotation(320.f);
@@ -296,50 +241,22 @@ void Ball::bounce(const Block& block)
             }
             else if(angle > 0.f && angle < 90.f){
                 //Bounce Top
-                const float distFromMid{distFromMidW(block)};
-                const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().width/2.f)};
-
-                if(distFromMid < 0){
-                    setRotation(270.f - ((distFromMid * -1.f) * degPerPixel));
-                }
-                else if(distFromMid > 0){
-                    setRotation(270.f + (distFromMid * degPerPixel));
-                }
-                else{
-                    setRotation(270.f);
-                }
+                setRotation(bounce_horizontally);
             }
             else if(angle > 180.f && angle < 270.f){
                 // Bounce Right
-                const float distFromMid{distFromMidH(block)};
-                const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().height/2.f)};
-
-                if(distFromMid < 0){
-                    setRotation(360.f - ((distFromMid * -1.f) * degPerPixel));
-                }
-                else if(distFromMid > 0){
-                    setRotation(0.f + (distFromMid * degPerPixel));
-                }
-                else{
-                    setRotation(0.f);
-                }
+                setRotation(bounce_vertically);
             }
         }
         // Middle
         else
         {
             // Bounce Top
-            const float distFromMid{distFromMidW(block)};
-            const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().width/2.f)};
-
-            if(distFromMid < 0){
-                setRotation(270.f - ((distFromMid * -1.f) * degPerPixel));
+            if(angle > 0.f && angle < 90.f){
+                setRotation(bounce_horizontally);
             }
-            else if(distFromMid > 0){
-                setRotation(270.f + (distFromMid * degPerPixel));
-            }
-            else{
-                setRotation(270.f);
+            if(angle > 90.f && angle < 180.f){
+                setRotation(bounce_horizontally);
             }
         }
     }
@@ -361,33 +278,11 @@ void Ball::bounce(const Block& block)
 
                 if(diffFromCorner.x < diffFromCorner.y){
                     // Bounce Left
-                    const float distFromMid{distFromMidH(block)};
-                    const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().height/2.f)};
-
-                    if(distFromMid < 0){
-                        setRotation(180.f + ((distFromMid * -1.f) * degPerPixel));
-                    }
-                    else if(distFromMid > 0){
-                        setRotation(180.f - (distFromMid * degPerPixel));
-                    }
-                    else{
-                        setRotation(180.f);
-                    }
+                    setRotation(bounce_vertically);
                 }
                 else if(diffFromCorner.x > diffFromCorner.y){
                     // Bounce Bottom
-                    const float distFromMid{distFromMidW(block)};
-                    const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().width/2.f)};
-
-                    if(distFromMid < 0){
-                        setRotation(90.f + ((distFromMid * -1.f) * degPerPixel));
-                    }
-                    else if(distFromMid > 0){
-                        setRotation(90.f - (distFromMid * degPerPixel));
-                    }
-                    else{
-                        setRotation(90.f);
-                    }
+                    setRotation(bounce_horizontally);
                 }
                 else{
                     setRotation(135.f);
@@ -395,34 +290,11 @@ void Ball::bounce(const Block& block)
             }
             else if(angle > 0.f && angle < 90.f){
                 // Bounce Left
-                const float distFromMid{distFromMidH(block)};
-                    const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().height/2.f)};
-
-                    if(distFromMid < 0){
-                        setRotation(180.f + ((distFromMid * -1.f) * degPerPixel));
-                    }
-                    else if(distFromMid > 0){
-                        setRotation(180.f - (distFromMid * degPerPixel));
-                    }
-                    else{
-                        setRotation(180.f);
-                    }
-
+                setRotation(bounce_vertically);
             }
             else if(angle > 180.f && angle < 270.f){
                 // Bounce Bottom
-                const float distFromMid{distFromMidW(block)};
-                const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().width/2.f)};
-
-                if(distFromMid < 0){
-                    setRotation(90.f + ((distFromMid * -1.f) * degPerPixel));
-                }
-                else if(distFromMid > 0){
-                    setRotation(90.f - (distFromMid * degPerPixel));
-                }
-                else{
-                    setRotation(90.f);
-                }
+                setRotation(bounce_horizontally);
             }
         }
         // Bottom Right
@@ -438,33 +310,11 @@ void Ball::bounce(const Block& block)
 
                 if(diffFromCorner.x < diffFromCorner.y){
                     // Bounce Right
-                    const float distFromMid{distFromMidH(block)};
-                    const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().height/2.f)};
-
-                    if(distFromMid < 0){
-                        setRotation(360.f - ((distFromMid * -1.f) * degPerPixel));
-                    }
-                    else if(distFromMid > 0){
-                        setRotation(0.f + (distFromMid * degPerPixel));
-                    }
-                    else{
-                        setRotation(0.f);
-                    }
+                    setRotation(bounce_vertically);
                 }
                 else if(diffFromCorner.x > diffFromCorner.y){
                     // Bounce Bottom
-                    const float distFromMid{distFromMidW(block)};
-                    const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().width/2.f)};
-
-                    if(distFromMid < 0){
-                        setRotation(90.f + ((distFromMid * -1.f) * degPerPixel));
-                    }
-                    else if(distFromMid > 0){
-                        setRotation(90.f - (distFromMid * degPerPixel));
-                    }
-                    else{
-                        setRotation(90.f);
-                    }
+                    setRotation(bounce_horizontally);
                 }
                 else{
                     setRotation(45.f);
@@ -472,52 +322,36 @@ void Ball::bounce(const Block& block)
             }
             else if(angle > 270.f && angle < 360.f){
                 // Bounce Bottom
+                setRotation(bounce_horizontally);
             }
             else if(angle > 90.f && angle < 180.f){
                 // Bounce Right
-                const float distFromMid{distFromMidH(block)};
-                const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().height/2.f)};
-
-                if(distFromMid < 0){
-                    setRotation(360.f - ((distFromMid * -1.f) * degPerPixel));
-                }
-                else if(distFromMid > 0){
-                    setRotation(0.f + (distFromMid * degPerPixel));
-                }
-                else{
-                    setRotation(0.f);
-                }
+                setRotation(bounce_vertically);
             }
         }
         // Middle
         else
         {
             // Bounce Bottom
-            const float distFromMid{distFromMidW(block)};
-            const float degPerPixel{max_bounce_angle/(block.getGlobalBounds().width/2.f)};
+            if(angle > 270.f && angle < 360.f){
+                setRotation(bounce_horizontally);
+            }
 
-            if(distFromMid < 0){
-                setRotation(90.f + ((distFromMid * -1.f) * degPerPixel));
-            }
-            else if(distFromMid > 0){
-                setRotation(90.f - (distFromMid * degPerPixel));
-            }
-            else{
-                setRotation(90.f);
+            if(angle > 180.f && angle < 270.f){
+                setRotation(bounce_horizontally);
             }
         }
     }
 
     /// MIDDLE
-    /*if(getGlobalBounds().top >= block.getPosition().y &&
+    if(getGlobalBounds().top >= block.getPosition().y &&
        getGlobalBounds().top + getGlobalBounds().height <= block.getPosition().y + block.getGlobalBounds().height)
     {
         // Left ?
 
         // Right ?
-    }*/
+    }
 }
-
 /// ///////////////////////////////////////////////
 /// OTHER FUNCTION(S)
 // Create Block
@@ -550,19 +384,6 @@ bool collideWithPaddle(const Ball& b, const Paddle& p)
 // Collide With Block
 bool collideWithBlock(const Ball& ball, const Block& block)
 {
-    /// DEBUG
-    /*if(ball.getGlobalBounds().intersects(block.getGlobalBounds())){
-    std::cout << "Ball Bounds   : X = " << ball.getGlobalBounds().left << '\n'
-                              << "Y = " << ball.getGlobalBounds().top << '\n'
-                              << "W = " << ball.getGlobalBounds().width << '\n'
-                              << "H = " << ball.getGlobalBounds().height << '\n'
-                              << '\n'
-              << "Block Bounds  : X = " << block.getGlobalBounds().left << '\n'
-                              << "Y = " << block.getGlobalBounds().top << '\n'
-                              << "W = " << block.getGlobalBounds().width << '\n'
-                              << "H = " << block.getGlobalBounds().height << '\n'
-                              << '\n';}*/
-
     sf::FloatRect ballBounds{ball.getGlobalBounds().left,
                              ball.getGlobalBounds().top,
                              ball.getRadius()*2.f, ball.getRadius()*2.f};
@@ -575,6 +396,7 @@ sf::Vector2f sizeRectFromPoints(const sf::Vector2f& A, const sf::Vector2f& B)
 {
     return sf::Vector2f{static_cast<float>(fabs(B.x - A.x)), static_cast<float>(fabs(B.y - A.y))};
 }
+
 /// ///////////////////////////////////////////////
 /// MAIN
 int main()
@@ -587,7 +409,6 @@ int main()
 
     /////// Ball
     Ball myBall{12.f};
-    myBall.setRotation(270.f);
     myBall.setPosition(WINDOW_W/2.f, PAD_Y - 24.f);
 
     /////// Blocks Grid
@@ -599,11 +420,8 @@ int main()
         }
     }
 
-    Block oneBlock{{70.f, 25.f}};
-    oneBlock.setPosition(WINDOW_W/2.f, WINDOW_H/2.f);
-
     /// DEBUG
-    sf::RectangleShape boxBall{{myBall.getGlobalBounds().width, myBall.getGlobalBounds().height}};
+    sf::RectangleShape boxBall{{myBall.getRadius()*2.f, myBall.getRadius()*2.f}};
     boxBall.setFillColor(sf::Color::Transparent);
     boxBall.setOutlineThickness(1);
     boxBall.setOutlineColor(sf::Color::Red);
@@ -640,17 +458,18 @@ int main()
                 if (event.key.code == sf::Keyboard::Q) { key[LEFT]  = false; }
                 if (event.key.code == sf::Keyboard::D) { key[RIGHT] = false; }
 
-                /// DEBUG
-                if (event.key.code == sf::Keyboard::Space) { std::cout << myBall << '\n'; }
+                if (event.key.code == sf::Keyboard::Space) {}
 			}
 
             /////// MOUSE PRESSED
             if(event.type == sf::Event::MouseButtonPressed) {
                 if(event.mouseButton.button == sf::Mouse::Left) {
                     myBall.rotate(25.f);
+                    std::cout << myBall.getRotation() << '\n';
                 }
                 if(event.mouseButton.button == sf::Mouse::Right) {
                     myBall.rotate(-25.f);
+                    std::cout << myBall.getRotation() << '\n';
                 }
             }
 
@@ -668,8 +487,10 @@ int main()
             myBall.bounce(pad);
         }
 
-        if(collideWithBlock(myBall, oneBlock)){
-            myBall.bounce(oneBlock);
+        for(const auto& block : gridBlocks){
+            if(collideWithBlock(myBall, block)){
+                myBall.bounce(block);
+            }
         }
 
         /// DEBUG
@@ -680,9 +501,8 @@ int main()
         window.clear();
         window.draw(pad);
         window.draw(myBall);
-        /*for(const auto& block : gridBlocks)
-            window.draw(block);*/
-        window.draw(oneBlock);
+        for(const auto& block : gridBlocks)
+            window.draw(block);
         window.draw(boxBall);
         window.display();
     }
