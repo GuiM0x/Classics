@@ -17,7 +17,8 @@ const float           PAD_W = 150.f;
 const float           PAD_H = 20.f;
 const float           PAD_X = (WINDOW_W / 2.f) - (PAD_W / 2.f);
 const float           PAD_Y = WINDOW_H - (PAD_H + 10.f);
-const float           SPEED = 50.f;
+const float        SPEEDPAD = 250.f;
+const float       SPEEDBALL = 150.f;
 const float              PI = 3.141592f;
 
 const sf::Vector2f origin_grid{(WINDOW_W - (GRID_COLS*BLOCK_W)) / 2.f, 0.f};
@@ -32,7 +33,7 @@ std::vector<bool> key(KEY_MAX, false);
 class Block;
 class Ball;
 class Paddle;
-Block createBlock(float, float);
+Block createBlock(float, float, sf::Texture*);
 bool collideWithPaddle(const Ball&, const Paddle&);
 bool collideWithBlock(const Ball&, const Block&);
 sf::Vector2f sizeRectFromPoints(const sf::Vector2f&, const sf::Vector2f&);
@@ -55,8 +56,8 @@ private:
 void Paddle::move(const sf::Time& dt, int dir)
 {
     switch(dir){
-        case keys::LEFT  : sf::RectangleShape::move(-SPEED*dt.asSeconds(), 0.f); break;
-        case keys::RIGHT : sf::RectangleShape::move(SPEED*dt.asSeconds(), 0.f); break;
+        case keys::LEFT  : sf::RectangleShape::move(-SPEEDPAD*dt.asSeconds(), 0.f); break;
+        case keys::RIGHT : sf::RectangleShape::move(SPEEDPAD*dt.asSeconds(), 0.f); break;
         default :
             break;
     }
@@ -68,10 +69,16 @@ class Block : public sf::RectangleShape
 public:
     Block();
     Block(const sf::Vector2f&);
+    Block(const sf::Vector2f&, sf::Texture*, bool alive = true);
     ~Block() {}
 
-private:
+    void takeDamage();
+    bool isAlive() const { return m_isAlive; }
 
+private:
+    sf::Texture *m_texture = nullptr;
+    bool         m_isAlive = true;
+    int             m_life = 3;
 };
 //////////////////////
 Block::Block() :
@@ -84,6 +91,31 @@ Block::Block(const sf::Vector2f& size) :
     sf::RectangleShape{size}
 {
 
+}
+
+Block::Block(const sf::Vector2f& size, sf::Texture* blk_texture, bool alive) :
+    sf::RectangleShape{size}, m_texture{blk_texture}, m_isAlive{alive}
+{
+    setTexture(blk_texture);
+    setTextureRect(sf::IntRect{120, 0, 60, 24});
+
+    if(!m_isAlive){
+        m_life = 0;
+        setFillColor(sf::Color::Transparent);
+    }
+}
+
+void Block::takeDamage()
+{
+    if(m_life != 0){
+        --m_life;
+        setTextureRect(sf::IntRect{60 * (m_life - 1), 0, 60, 24});
+    }
+
+    if(m_life == 0 && m_isAlive){
+        m_isAlive = false;
+        setFillColor(sf::Color::Transparent);
+    }
 }
 
 /// ///////////////////////////////////////////////
@@ -126,8 +158,8 @@ void Ball::move(const sf::Time& dt)
     const float angle_deg{getRotation()};
     const float angle_rad{(PI * angle_deg) / 180.f};
 
-    sf::CircleShape::move(cos(angle_rad) * SPEED * dt.asSeconds(),
-                          sin(angle_rad) * SPEED * dt.asSeconds());
+    sf::CircleShape::move(cos(angle_rad) * SPEEDBALL * dt.asSeconds(),
+                          sin(angle_rad) * SPEEDBALL * dt.asSeconds());
 }
 
 float Ball::distFromMidW(const Block& block) const
@@ -354,16 +386,6 @@ void Ball::bounce(const Block& block)
 }
 /// ///////////////////////////////////////////////
 /// OTHER FUNCTION(S)
-// Create Block
-Block createBlock(float width, float height)
-{
-    Block tmp{sf::Vector2f(width, height)};
-    tmp.setFillColor(sf::Color(Outils::rollTheDice(0,1),
-                               Outils::rollTheDice(25,255),
-                               Outils::rollTheDice(0,1)));
-
-    return tmp;
-}
 // Collide With Paddle
 bool collideWithPaddle(const Ball& b, const Paddle& p)
 {
@@ -394,7 +416,8 @@ bool collideWithBlock(const Ball& ball, const Block& block)
 // Calcul "size" rect between 2 points
 sf::Vector2f sizeRectFromPoints(const sf::Vector2f& A, const sf::Vector2f& B)
 {
-    return sf::Vector2f{static_cast<float>(fabs(B.x - A.x)), static_cast<float>(fabs(B.y - A.y))};
+    return sf::Vector2f{static_cast<float>(fabs(B.x - A.x)),
+                        static_cast<float>(fabs(B.y - A.y))};
 }
 
 /// ///////////////////////////////////////////////
@@ -412,10 +435,22 @@ int main()
     myBall.setPosition(WINDOW_W/2.f, PAD_Y - 24.f);
 
     /////// Blocks Grid
+    sf::Texture blk_texture;
+    blk_texture.loadFromFile("assets/img/blk-texture.png");
+
+    std::vector<bool> gridBool{1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                               1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                               1, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+                               1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                               1, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+                               1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                               1, 1, 1, 1, 0, 0, 1, 1, 1, 1,
+                               1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+
     Matrix<Block> gridBlocks(GRID_ROWS, GRID_COLS, Block{});
     for(std::size_t i=0; i<GRID_ROWS; ++i){
         for(std::size_t j=0; j<GRID_COLS; ++j){
-            gridBlocks(i, j) = createBlock(BLOCK_W, BLOCK_H);
+            gridBlocks(i, j) = Block{sf::Vector2f{BLOCK_W, BLOCK_H}, &blk_texture, gridBool[(i*GRID_COLS)+j]};
             gridBlocks(i, j).setPosition((j*BLOCK_W)+origin_grid.x, i*BLOCK_H);
         }
     }
@@ -487,9 +522,12 @@ int main()
             myBall.bounce(pad);
         }
 
-        for(const auto& block : gridBlocks){
-            if(collideWithBlock(myBall, block)){
-                myBall.bounce(block);
+        for(auto&& block : gridBlocks){
+            if(block.isAlive()){
+                if(collideWithBlock(myBall, block)){
+                    myBall.bounce(block);
+                    block.takeDamage();
+                }
             }
         }
 
