@@ -174,7 +174,7 @@ float Ball::distFromMidH(const Block& block) const
 
 void Ball::startRotation()
 {
-    std::array<float, 4> tmp{225.f, 250.f, 290.f, 315.f};
+    std::array<float, 4> tmp{250.f, 265.f, 275.f, 290.f};
     setRotation(tmp[static_cast<std::size_t>(Outils::rollTheDice(0, tmp.size()))]);
 }
 
